@@ -1,0 +1,12 @@
+streamlit
+requests
+PyPDF2
+python-docx
+python-dotenv
+sounddevice
+numpy
+soundfile
+faster-whisper
+SpeechRecognition
+pytesseract
+Pillow
