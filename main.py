@@ -484,6 +484,7 @@ st.markdown(
         transition: all 0.3s ease;
         border: none;
         cursor: pointer;
+        color: #666666; /* Force dark text for unselected tabs */
     }
 
     .stTabs [aria-selected="true"] {
