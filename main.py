@@ -163,9 +163,26 @@ st.markdown(
     }
 
     /* Hide Streamlit default elements */
-    MainMenu {visibility: visible;}
-    footer {visibility: visible;}
-    header {visibility: visible;}
+    /* Hide Streamlit default elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;} /* Hides the whole header bar */
+    
+    /* But Bring Back the Sidebar Toggle (since it lives in header) */
+    [data-testid="stSidebarCollapsedControl"] {
+        visibility: visible !important;
+    }
+    
+    /* Specific Toolbar Hiding (Redundant safety) */
+    [data-testid="stToolbar"] {
+        display: none !important;
+    }
+    [data-testid="stDecoration"] {
+        display: none !important;
+    }
+    [data-testid="stStatusWidget"] {
+        display: none !important;
+    }
     
     [data-testid="stHeader"] {
         background: rgba(0,0,0,0) !important; 
