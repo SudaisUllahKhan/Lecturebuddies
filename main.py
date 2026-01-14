@@ -173,9 +173,10 @@ st.markdown(
     }
 
     /* Force Sidebar Toggle Button Visibility */
+    /* Force Sidebar Toggle Button Visibility */
     [data-testid="stSidebarCollapsedControl"] {
-        color: #4e54c8 !important;
-        background-color: #ffffff !important;
+        color: #ffffff !important;
+        background-color: #4e54c8 !important;
         border-radius: 50% !important;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
         z-index: 1000000 !important;
@@ -184,8 +185,18 @@ st.markdown(
     
     [data-testid="stSidebarCollapsedControl"] svg,
     [data-testid="stSidebarCollapsedControl"] i {
-        fill: #4e54c8 !important;
-        color: #4e54c8 !important;
+        fill: #ffffff !important;
+        color: #ffffff !important;
+    }
+
+    /* Fix Input Placeholders */
+    ::placeholder {
+        color: #6b7280 !important;
+        opacity: 1 !important; /* Firefox */
+    }
+    
+    .stTextInput input::placeholder {
+        color: #6b7280 !important;
     }
 
     /* Main Title */
@@ -606,6 +617,12 @@ st.markdown(
        ============================================== */
     
     /* Extra Small Devices (Portrait Phones) */
+    @media only screen and (max-width: 600px) {
+        .st-emotion-cache-10p9htt.e6f82ta4 {
+            background-color: #4e54c8 !important;
+        }
+    }
+    
     @media only screen and (max-width: 480px) {
         .main .block-container {
             padding: 0.75rem !important;
@@ -2647,6 +2664,9 @@ def show_translation_feature():
             height=200
         )
         
+        if "translation_version" not in st.session_state:
+            st.session_state.translation_version = 0
+
         if st.button("🔄 Translate", key="translate_text", use_container_width=True):
             if text_input or uploaded_file:
                 with st.spinner("Translating..."):
@@ -2659,9 +2679,8 @@ def show_translation_feature():
                     
                     st.session_state.translation_result = translated
                     
-                    # Force reset of the output widget to ensure new value is shown
-                    if "translation_display" in st.session_state:
-                        del st.session_state["translation_display"]
+                    # Increment version to force widget refresh
+                    st.session_state.translation_version += 1
                         
                     st.success("✅ Translation completed!")
                     st.rerun()
@@ -2671,7 +2690,9 @@ def show_translation_feature():
         # Display translation result
         if st.session_state.get('translation_result'):
             st.markdown("### 🌐 Translation Result")
-            st.text_area("Translated Text", value=st.session_state.translation_result, height=200, key="translation_display")
+            # Dynamic key forces re-render
+            current_key = f"translation_display_{st.session_state.translation_version}"
+            st.text_area("Translated Text", value=st.session_state.translation_result, height=200, key=current_key)
             
             # Download button
             st.download_button(
