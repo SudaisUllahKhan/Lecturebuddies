@@ -3715,4 +3715,4 @@ def main():
         show_dashboard()
 
 if __name__ == "__main__":
-    main()s
+    main()
