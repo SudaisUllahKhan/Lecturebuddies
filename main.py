@@ -192,11 +192,15 @@ st.markdown(
     
     [data-testid="stSidebarCollapsedControl"] svg,
     [data-testid="stSidebarCollapsedControl"] i {
-        fill: #ffffff !important;
-        color: #ffffff !important;
+        fill: #000000 !important;
+        color: #000000 !important;
     }
 
-    /* Fix Input Placeholders */
+    /* Fix Input Placeholders & INPUT TEXT COLOR */
+    .stTextInput input {
+        color: #000000 !important;
+    }
+
     ::placeholder {
         color: #6b7280 !important;
         opacity: 1 !important; /* Firefox */
