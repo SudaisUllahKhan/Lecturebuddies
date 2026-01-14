@@ -1326,6 +1326,10 @@ def show_welcome_screen():
         }
         .stat-card:hover { transform: translateY(-3px); }
         .stat-value { color: #4e54c8; font-size: 32px; margin: 10px 0; font-weight: 700; }
+        
+        /* Force dark text for these specific elements on the light card background */
+        .feature-title { color: #4e54c8 !important; font-size: 18px !important; font-weight: 600 !important; margin: 0 0 5px 0 !important; font-family: 'Georgia', serif !important; }
+        .feature-description { color: #555 !important; font-size: 14px !important; margin: 0 !important; font-family: 'Georgia', serif !important; }
         </style>
     """, unsafe_allow_html=True)
 
