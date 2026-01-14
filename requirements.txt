@@ -10,4 +10,5 @@ faster-whisper
 SpeechRecognition
 pytesseract
 Pillow
-streamlit-mic-recorder
+bcrypt
+PyAudio
