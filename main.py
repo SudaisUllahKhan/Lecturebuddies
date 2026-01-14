@@ -163,21 +163,18 @@ st.markdown(
     }
 
     /* Hide Streamlit default elements */
-    /* Hide Streamlit default elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;} /* Hides the whole header bar */
+    /* Do NOT hide the whole header, it kills the toggle button layout space on some devices */
+    /* header {visibility: hidden;} */
     
-    /* But Bring Back the Sidebar Toggle (since it lives in header) */
-    [data-testid="stSidebarCollapsedControl"] {
-        visibility: visible !important;
-    }
-    
-    /* Specific Toolbar Hiding (Redundant safety) */
-    [data-testid="stToolbar"] {
+    /* Hide the decoration bar at top */
+    [data-testid="stDecoration"] {
         display: none !important;
     }
-    [data-testid="stDecoration"] {
+    
+    /* Specific Toolbar Hiding (Share, Star, etc) */
+    [data-testid="stToolbar"] {
         display: none !important;
     }
     [data-testid="stStatusWidget"] {
@@ -185,31 +182,31 @@ st.markdown(
     }
     
     [data-testid="stHeader"] {
-        background: rgba(0,0,0,0) !important; 
-        /* height: 0px !important;  <-- Removing this as it might hide the mobile toggle button */
+        background: transparent !important;
+        pointer-events: none !important; /* Let clicks pass through empty header areas */
     }
 
     /* Force Sidebar Toggle Button Visibility */
     [data-testid="stSidebarCollapsedControl"],
     button[kind="header"] {
+        pointer-events: auto !important; /* Re-enable clicks for this button */
         color: #ffffff !important;
-        background-color: #4e54c8 !important;
+        background-color: #4e54c8 !important; /* Theme Purple Background */
         border-radius: 50% !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
-        z-index: 1000000 !important;
+        z-index: 1000002 !important;
         display: block !important;
         border: 2px solid white !important;
         width: 44px !important;
         height: 44px !important;
         padding: 5px !important;
-    }
-        z-index: 1000000 !important;
-        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     
     [data-testid="stSidebarCollapsedControl"] svg,
     [data-testid="stSidebarCollapsedControl"] i {
-        fill: #000000 !important;
+        fill: #000000 !important; /* Black Icon */
         color: #000000 !important;
     }
 
