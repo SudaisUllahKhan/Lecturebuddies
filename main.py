@@ -999,37 +999,7 @@ def show_login_page():
                 else:
                     st.warning("Please fill in username and password fields")
         
-        # Developer Demo Access (Temporary)
-        st.markdown('<div class="dev-access-container">', unsafe_allow_html=True)
-        st.markdown('<p class="dev-access-title">Developer Tools</p>', unsafe_allow_html=True)
-        if st.button("🚀 Demo Access (Dev Only)", key="demo_btn", help="Bypass login for development"):
-            # Use Developer account
-            # Create if doesn't exist, otherwise authenticate
-            success, message, user_id = create_user("Developer", "devpass123", "dev@lecturebuddies.com")
-            if not success and "exists" in message:
-                success, message, user_id = authenticate_user("Developer", "devpass123")
-            
-            if success:
-                st.session_state.authenticated = True
-                st.session_state.current_user = "Developer"
-                st.session_state.user_id = user_id
-                st.session_state.user_stats = get_user_stats(user_id)
-                st.success("Welcome, Developer! Access granted.")
-                time.sleep(1)
-                st.rerun()
-            else:
-                # Fallback if DB is completely broken
-                st.session_state.authenticated = True
-                st.session_state.current_user = "Developer"
-                st.session_state.user_id = 1
-                st.session_state.user_stats = {
-                    "study_sessions": 0, "quizzes_created": 0, "recordings_count": 0,
-                    "flashcards_created": 0, "notes_count": 0, "total_study_time": 0
-                }
-                st.warning("DB Access failed, using offline developer mode.")
-                time.sleep(1)
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+
 
 # ==========================
 # DASHBOARD LAYOUT SECTION
@@ -1199,7 +1169,7 @@ def show_dashboard():
         # Determine if expander should be open (open if no feature selected)
         is_menu_expanded = st.session_state.selected_feature is None
         
-        with st.expander("Menu", expanded=is_menu_expanded):
+        with st.expander("Menu", expanded=True):
             # Navigation menu
             if st.button("Dashboard Home", key="nav_dashboard", use_container_width=True):
                 st.session_state.selected_feature = None
@@ -2287,13 +2257,23 @@ def show_recording_feature():
         # Initialize session state for transcript storage
         if "live_transcript" not in st.session_state:
             st.session_state.live_transcript = ""
+
+    # ==========================
+    # TAB 2: Realtime Transcript (UPDATED CODE)
+    # ==========================
+    with tab2:
+        st.markdown("### ⚡ Fast Real-time Transcription")
+        
+        # Initialize session state for transcript storage
+        if "live_transcript" not in st.session_state:
+            st.session_state.live_transcript = ""
         if "is_recording" not in st.session_state:
             st.session_state.is_recording = False
 
         col1, col2 = st.columns([1, 2])
 
         with col1:
-            st.info("💡 **Instructions:**\n1. Click 'Start Recording'.\n2. Speak into your mic.\n3. The text will appear instantly.\n4. Click 'Stop Recording' to end the session.")
+            st.info("💡 **Instructions:**\\n1. Click 'Start Recording'.\\n2. Speak into your mic.\\n3. The text will appear instantly.\\n4. Click 'Stop Recording' to end the session.")
             
             # Start/Stop Button
             if not st.session_state.is_recording:
