@@ -163,38 +163,14 @@ st.markdown(
     }
 
     /* Hide Streamlit default elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    /* Do NOT hide the whole header, it kills the toggle button layout space on some devices */
-    /* header {visibility: hidden;} */
-    
-    /* Hide the decoration bar at top */
-    [data-testid="stDecoration"] {
-        display: none !important;
-    }
-    
-    /* Specific Toolbar Hiding (Share, Star, etc) */
-    [data-testid="stToolbar"] {
-        display: none !important;
-    }
-    [data-testid="stStatusWidget"] {
-        display: none !important;
-    }
+    #MainMenu {visibility: visible;}
+    footer {visibility: visible;}
+    header {visibility: visible;}
     
     [data-testid="stHeader"] {
-        background: transparent !important;
-        pointer-events: none !important;
-        z-index: 100 !important;
+        background: rgba(0,0,0,0) !important; 
+        height: 0px !important; 
     }
-
-    /* Force Sidebar Toggle Button Visibility - REVERTED TO BASIC */
-    [data-testid="stSidebarCollapsedControl"] {
-        display: block !important;
-        color: #4e54c8 !important; /* Just ensuring it uses brand color if visible */
-        z-index: 1000002 !important;
-    }
-    
-    /* Removed heavy styling (position:fixed, border-radius, box-shadow, black bg) */
 
     /* Fix Input Placeholders & INPUT TEXT COLOR */
     .stTextInput input {
