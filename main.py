@@ -169,7 +169,23 @@ st.markdown(
     
     [data-testid="stHeader"] {
         background: rgba(0,0,0,0) !important; 
-        height: 0px !important; 
+        /* height: 0px !important;  <-- Removing this as it might hide the mobile toggle button */
+    }
+
+    /* Force Sidebar Toggle Button Visibility */
+    [data-testid="stSidebarCollapsedControl"] {
+        color: #4e54c8 !important;
+        background-color: #ffffff !important;
+        border-radius: 50% !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+        z-index: 1000000 !important;
+        display: block !important;
+    }
+    
+    [data-testid="stSidebarCollapsedControl"] svg,
+    [data-testid="stSidebarCollapsedControl"] i {
+        fill: #4e54c8 !important;
+        color: #4e54c8 !important;
     }
 
     /* Main Title */
@@ -2642,7 +2658,13 @@ def show_translation_feature():
                         translated = translate_text(text_input, target_lang_label)
                     
                     st.session_state.translation_result = translated
+                    
+                    # Force reset of the output widget to ensure new value is shown
+                    if "translation_display" in st.session_state:
+                        del st.session_state["translation_display"]
+                        
                     st.success("✅ Translation completed!")
+                    st.rerun()
             else:
                 st.warning("Please provide text to translate")
         
@@ -3693,4 +3715,4 @@ def main():
         show_dashboard()
 
 if __name__ == "__main__":
-    main()
+    main()s
