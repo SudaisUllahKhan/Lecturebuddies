@@ -182,14 +182,15 @@ st.markdown(
     }
     
     [data-testid="stHeader"] {
-        background: transparent !important;
-        pointer-events: none !important; /* Let clicks pass through empty header areas */
+        background: #000000 !important;
+        /* pointer-events: none !important; <--- REMOVED this as it breaks interaction on some mobile browsers */
+        z-index: 100 !important;
     }
 
     /* Force Sidebar Toggle Button Visibility */
     [data-testid="stSidebarCollapsedControl"],
     button[kind="header"] {
-        pointer-events: auto !important; /* Re-enable clicks for this button */
+        pointer-events: auto !important;
         color: #ffffff !important;
         background-color: #000000 !important; /* Solid Black Background */
         border-radius: 50% !important;
@@ -202,6 +203,10 @@ st.markdown(
         padding: 5px !important;
         visibility: visible !important;
         opacity: 1 !important;
+        /* Ensure it's anchored */
+        position: fixed !important;
+        top: 10px !important;
+        left: 10px !important;
     }
     
     [data-testid="stSidebarCollapsedControl"] svg,
