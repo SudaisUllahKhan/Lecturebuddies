@@ -191,7 +191,7 @@ st.markdown(
     button[kind="header"] {
         pointer-events: auto !important; /* Re-enable clicks for this button */
         color: #ffffff !important;
-        background-color: #4e54c8 !important; /* Theme Purple Background */
+        background-color: #000000 !important; /* Solid Black Background */
         border-radius: 50% !important;
         box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
         z-index: 1000002 !important;
@@ -206,8 +206,8 @@ st.markdown(
     
     [data-testid="stSidebarCollapsedControl"] svg,
     [data-testid="stSidebarCollapsedControl"] i {
-        fill: #000000 !important; /* Black Icon */
-        color: #000000 !important;
+        fill: #ffffff !important;
+        color: #ffffff !important;
     }
 
     /* Fix Input Placeholders & INPUT TEXT COLOR */
