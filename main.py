@@ -173,12 +173,19 @@ st.markdown(
     }
 
     /* Force Sidebar Toggle Button Visibility */
-    /* Force Sidebar Toggle Button Visibility */
-    [data-testid="stSidebarCollapsedControl"] {
+    [data-testid="stSidebarCollapsedControl"],
+    button[kind="header"] {
         color: #ffffff !important;
         background-color: #4e54c8 !important;
         border-radius: 50% !important;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
+        z-index: 1000000 !important;
+        display: block !important;
+        border: 2px solid white !important;
+        width: 44px !important;
+        height: 44px !important;
+        padding: 5px !important;
+    }
         z-index: 1000000 !important;
         display: block !important;
     }
