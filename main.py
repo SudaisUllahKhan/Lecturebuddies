@@ -182,38 +182,19 @@ st.markdown(
     }
     
     [data-testid="stHeader"] {
-        background: #000000 !important;
-        /* pointer-events: none !important; <--- REMOVED this as it breaks interaction on some mobile browsers */
+        background: transparent !important;
+        pointer-events: none !important;
         z-index: 100 !important;
     }
 
-    /* Force Sidebar Toggle Button Visibility */
-    [data-testid="stSidebarCollapsedControl"],
-    button[kind="header"] {
-        pointer-events: auto !important;
-        color: #ffffff !important;
-        background-color: #000000 !important; /* Solid Black Background */
-        border-radius: 50% !important;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
-        z-index: 1000002 !important;
+    /* Force Sidebar Toggle Button Visibility - REVERTED TO BASIC */
+    [data-testid="stSidebarCollapsedControl"] {
         display: block !important;
-        border: 2px solid white !important;
-        width: 44px !important;
-        height: 44px !important;
-        padding: 5px !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        /* Ensure it's anchored */
-        position: fixed !important;
-        top: 10px !important;
-        left: 10px !important;
+        color: #4e54c8 !important; /* Just ensuring it uses brand color if visible */
+        z-index: 1000002 !important;
     }
     
-    [data-testid="stSidebarCollapsedControl"] svg,
-    [data-testid="stSidebarCollapsedControl"] i {
-        fill: #ffffff !important;
-        color: #ffffff !important;
-    }
+    /* Removed heavy styling (position:fixed, border-radius, box-shadow, black bg) */
 
     /* Fix Input Placeholders & INPUT TEXT COLOR */
     .stTextInput input {
