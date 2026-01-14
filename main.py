@@ -5,24 +5,82 @@ from docx import Document
 import io
 import os
 import json
+import base64
 import time
 from dotenv import load_dotenv
 from document_processor import DocumentProcessor
+import sounddevice as sd
 import numpy as np
+import soundfile as sf
+import threading
+import queue
 import tempfile
+from PIL import Image
+import pytesseract
+import re
+import speech_recognition as sr
 from faster_whisper import WhisperModel
-# CHANGED: Replaced crashing local libraries with web-compatible recorder
-from streamlit_mic_recorder import mic_recorder
+from database import (
+    create_user, 
+    authenticate_user, 
+    get_user_stats, 
+    increment_activity,
+    save_recording,
+    save_quiz,
+    update_user_profile,
+    get_full_user_data,
+    delete_user_account
+)
+
+
+  
+   
+  
+    
+   
+   
+ 
+    
+    
+  
+
+
+
+
+
+# ==========================
+import random
 
 # ==========================
 # PAGE CONFIGURATION
 # ==========================
 st.set_page_config(
-    page_title="LectureBuddies - Educational Platform",
+    page_title="Lecturebuddies - Educational Platform",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+def get_random_quote():
+    """Returns a random motivational quote with author"""
+    quotes = [
+        {"text": "The expert in anything was once a beginner.", "author": "Helen Hayes"},
+        {"text": "Success is the sum of small efforts, repeated day in and day out.", "author": "Robert Collier"},
+        {"text": "Live as if you were to die tomorrow. Learn as if you were to live forever.", "author": "Mahatma Gandhi"},
+        {"text": "It always seems impossible until it's done.", "author": "Nelson Mandela"},
+        {"text": "Don't watch the clock; do what it does. Keep going.", "author": "Sam Levenson"},
+        {"text": "Education is the passport to the future, for tomorrow belongs to those who prepare for it today.", "author": "Malcolm X"},
+        {"text": "The beautiful thing about learning is that no one can take it away from you.", "author": "B.B. King"},
+        {"text": "Study hard, for the well is deep, and our brains are shallow.", "author": "Richard Baxter"},
+        {"text": "Motivation is what gets you started. Habit is what keeps you going.", "author": "Jim Ryun"},
+        {"text": "Your future is created by what you do today, not tomorrow.", "author": "Robert Kiyosaki"},
+        {"text": "Believe you can and you're halfway there.", "author": "Theodore Roosevelt"},
+        {"text": "Strive for progress, not perfection.", "author": "Bill Phillips"},
+        {"text": "The secret of getting ahead is getting started.", "author": "Mark Twain"},
+        {"text": "There are no shortcuts to any place worth going.", "author": "Beverly Sills"},
+        {"text": "Focus on the goal, not the obstacle.", "author": "Anonymous"}
+    ]
+    return random.choice(quotes)
 
 # ==========================
 # SESSION STATE INITIALIZATION
@@ -33,6 +91,8 @@ def init_session_state():
         # Login/Auth
         "authenticated": False,
         "current_user": None,
+        "user_id": None, 
+        "user_stats": {}, 
         "current_page": "dashboard",
 
         # Chatbot & Summarization
@@ -50,11 +110,12 @@ def init_session_state():
         "quiz_temperature": 0.7,
 
         # Live Lecture Recording
+        "rec_thread": None,
+        "audio_queue": None,
         "recording": False,
         "transcript": "",
         "partial_transcript": "",
         "chunks_saved": [],
-        "live_transcript": "", # Added this back
 
         # Dashboard
         "selected_feature": None
@@ -66,10 +127,20 @@ def init_session_state():
 init_session_state()
 
 # ==========================
-# LOAD API KEY (UNCHANGED)
+# LOAD API KEY
 # ==========================
 load_dotenv()
 api_key = os.getenv("GROQ_API_KEY")
+
+# ==========================
+# LOGO HELPER
+# ==========================
+def get_logo_svg(size_px=80, font_size_px=42):
+    """Returns the SVG logo string with adjustable size wrapped in a link"""
+    svg_icon = f'<svg class="lb-logo-svg" width="{size_px}" height="{size_px}" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="position: relative; top: 10px;"><path d="M50 15L20 28L50 41L80 28L50 15Z" fill="#2D005E"/><path d="M70 32V45" stroke="#2D005E" stroke-width="2"/><circle cx="50" cy="48" r="15" fill="#2D005E"/></svg>'
+    font_style = f'font-family: \'Georgia\', serif; font-size: {font_size_px}px; font-weight: 900; color: #2D005E; letter-spacing: -1px; margin-left: -10px;'
+    
+    return f'<a href="https://lecturebuddies.streamlit.app" target="_blank" style="text-decoration: none; display: flex; align-items: center; gap: 0px; cursor: pointer;">{svg_icon}<span class="lb-logo-text" style="{font_style}">Lecturebuddies</span></a>'
 
 # ==========================
 # GLOBAL STYLING - LECTUREBUDDIES THEME
@@ -77,7 +148,7 @@ api_key = os.getenv("GROQ_API_KEY")
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+    /* Removed Poppins @import */
 
     /* Prevent scrolling on login page only */
     .login-page body, .login-page html {
@@ -87,7 +158,7 @@ st.markdown(
 
     /* Main App Styling */
     .stApp {
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Georgia', serif;
         background-color: #f5f7fa;
     }
 
@@ -96,9 +167,6 @@ st.markdown(
     footer {visibility: visible;}
     header {visibility: visible;}
     
-    /* CRITICAL FIX: To ensure Streamlit's default header is completely gone 
-       (or transparent), we keep this, as custom headers are removed. 
-       If you want the default Streamlit title bar back, delete this block. */
     [data-testid="stHeader"] {
         background: rgba(0,0,0,0) !important; 
         height: 0px !important; 
@@ -107,23 +175,23 @@ st.markdown(
     /* Main Title */
     .main-title {
         text-align: center;
-        font-size: 42px;
+        font-size: clamp(28px, 5vw, 42px);
         font-weight: 800;
         background: linear-gradient(90deg, #4e54c8, #8f94fb, #4e54c8);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
         margin-bottom: 8px;
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Georgia', serif;
     }
 
     /* Tagline */
     .tagline {
         text-align: center;
-        font-size: 16px;
+        font-size: clamp(14px, 2vw, 16px);
         color: #666;
         margin-bottom: 15px;
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Georgia', serif;
     }
 
     /* Gradient Line */
@@ -136,42 +204,38 @@ st.markdown(
         max-width: 400px;
     }
 
-    /* ==============================================
-       TOP NAVBAR - DELETED (Cleaned)
-       ============================================== */
-    /* All custom header CSS removed. */
+    /* App Brand Title (Login Page) */
+    .app-brand-title {
+        font-size: clamp(28px, 5vw, 42px);
+        font-weight: 800;
+        color: #4e54c8;
+        text-shadow: 2px 2px 4px rgba(78, 84, 200, 0.2);
+        font-family: 'Georgia', serif;
+        margin-bottom: 8px;
+        text-align: center;
+    }
 
     /* ==============================================
        DASHBOARD CONTENT STYLING FIXES
        ============================================== */
 
     .main .block-container {
-        padding-top: 2rem !important; 
-        padding-bottom: 3rem !important;
-        padding-left: 3rem !important;
-        padding-right: 3rem !important;
+        padding: clamp(1rem, 3vw, 3rem) !important;
+        max-width: 1400px;
+        margin: 0 auto;
     }
 
-    /* Sidebar Fixes: Reduce top padding to lift the menu closer to the top */
     [data-testid="stSidebar"] > div:first-child {
         padding-top: 10px !important; 
         padding-bottom: 10px !important;
     }
 
     /* ==============================================
-       SIDEBAR - Modern WordPress Style (Unchanged)
+       SIDEBAR
        ============================================== */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #ffffff 0%, #f8f9ff 100%);
         border-right: 1px solid #e0e7ff;
-    }
-
-    [data-testid="stSidebar"] > div:first-child {
-        padding-top: 10px !important;
-    }
-
-    .sidebar-section {
-        padding: 10px 0;
     }
 
     .sidebar-title {
@@ -182,6 +246,7 @@ st.markdown(
         color: #9ca3af;
         padding: 0 20px;
         margin-bottom: 12px;
+        font-family: 'Georgia', serif !important;
     }
 
     /* Sidebar Button Styling */
@@ -194,14 +259,15 @@ st.markdown(
         background: transparent !important;
         border: none !important;
         color: #4b5563 !important;
-        font-weight: 500 !important;
-        font-size: 12px !important;
+        font-weight: 600 !important;
+        font-size: 13px !important;
         transition: all 0.3s ease !important;
         display: flex !important;
         align-items: center !important;
         gap: 8px !important;
         white-space: nowrap !important;
         min-height: 32px !important;
+        font-family: 'Georgia', serif !important;
     }
 
     [data-testid="stSidebar"] button:hover {
@@ -210,8 +276,51 @@ st.markdown(
         transform: translateX(5px);
     }
 
+    /* Logout Button in Sidebar - Special Styling */
+    [data-testid="stSidebar"] button[key="logout_btn"],
+    [data-testid="stSidebar"] .stButton > button[key="logout_btn"],
+    [data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div:last-child button,
+    [data-testid="stSidebar"] button[aria-label*="Logout"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+    }
+
+    [data-testid="stSidebar"] button[key="logout_btn"]:hover,
+    [data-testid="stSidebar"] .stButton > button[key="logout_btn"]:hover,
+    [data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div:last-child button:hover,
+    [data-testid="stSidebar"] button[aria-label*="Logout"]:hover {
+        background: linear-gradient(90deg, #8f94fb, #764ba2) !important;
+        transform: translateX(5px) translateY(-2px) !important;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+    }
+
+    /* Welcome Styles */
+    .welcome-container {
+        text-align: center;
+        padding: clamp(15px, 3vw, 30px);
+        background: linear-gradient(90deg, #8f94fb, #764ba2);
+        border-radius: 15px;
+        border: 1px solid #d1d9ff;
+        margin: 10px 0;
+    }
+
+    .welcome-title {
+        color: #ffffff !important;
+        font-size: clamp(18px, 4vw, 24px);
+        font-weight: 700;
+        margin-bottom: 10px;
+        font-family: 'Georgia', serif;
+    }
+
+    .welcome-text {
+        color: #ffffff !important;
+        font-size: clamp(14px, 2vw, 16px);
+        font-family: 'Georgia', serif;
+    }
+
     /* ==============================================
-       LOGIN/SIGNUP PAGES - WordPress Style
+       LOGIN/SIGNUP PAGES
        ============================================== */
     .login-container {
         display: flex;
@@ -240,14 +349,14 @@ st.markdown(
         font-weight: 700;
         color: #4e54c8;
         margin-bottom: 8px;
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Georgia', serif;
     }
 
     .login-subtitle {
         font-size: 15px;
         color: #667eea;
         font-weight: 400;
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Georgia', serif;
     }
 
     /* Input Field Styling */
@@ -261,7 +370,7 @@ st.markdown(
         font-weight: 600;
         color: #374151;
         margin-bottom: 8px;
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Georgia', serif;
     }
 
     /* Override Streamlit input styling */
@@ -271,7 +380,7 @@ st.markdown(
         border-radius: 10px !important;
         padding: 12px 16px !important;
         font-size: 15px !important;
-        font-family: 'Poppins', sans-serif !important;
+        font-family: 'Georgia', serif !important;
         transition: all 0.3s ease !important;
         height: auto !important;
         width: 100% !important;
@@ -286,6 +395,20 @@ st.markdown(
         background: white !important;
     }
 
+    /* Input Field Labels - Fixed Black, No Bold, No Hover */
+    .stTextInput label,
+    .stTextInput label p {
+        color: #000000 !important;
+        font-weight: 400 !important;
+        transition: none !important;
+    }
+
+    .stTextInput label:hover,
+    .stTextInput label:hover p {
+        color: #000000 !important;
+        font-weight: 400 !important;
+    }
+
     /* Modern Button Styling */
     .stButton > button {
         width: 100% !important;
@@ -298,15 +421,49 @@ st.markdown(
         border-radius: 10px !important;
         cursor: pointer !important;
         transition: all 0.3s ease !important;
-        font-family: 'Poppins', sans-serif !important;
+        font-family: 'Georgia', serif !important;
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
         margin-top: 10px !important;
     }
 
     .stButton > button:hover {
-        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+        background: linear-gradient(90deg, #8f94fb, #764ba2) !important;
         transform: translateY(-2px) !important;
         box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+    }
+
+    /* Login/Signup Page Button Styling - Higher Specificity */
+    .stTabs .stButton > button {
+        width: 100% !important;
+        background: linear-gradient(135deg, #4e54c8, #8f94fb) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        font-size: 15px !important;
+        padding: 9px 12px !important;
+        border: none !important;
+        border-radius: 10px !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        font-family: 'Georgia', serif !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+        margin-top: 10px !important;
+    }
+
+    .stTabs .stButton > button:hover {
+        background: linear-gradient(135deg, #8f94fb, #4e54c8) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+    }
+
+    /* Create Account Button - Specific Gradient */
+    button[data-testid="baseButton-secondary"]:has-text("Create Account"),
+    div[data-testid="stVerticalBlock"] button:nth-of-type(2) {
+        background: linear-gradient(135deg, #4e54c8, #8f94fb) !important;
+    }
+
+    button[data-testid="baseButton-secondary"]:has-text("Create Account"):hover,
+    div[data-testid="stVerticalBlock"] button:nth-of-type(2):hover {
+        background: linear-gradient(135deg, #8f94fb, #4e54c8) !important;
     }
 
     /* Tab Styling */
@@ -319,17 +476,26 @@ st.markdown(
     }
 
     .stTabs [data-baseweb="tab"] {
-        border-radius: 8px;
-        font-family: 'Poppins', sans-serif;
+        border-radius: 10px;
+        font-family: 'Georgia', serif;
         font-weight: 600;
-        font-size: 14px;
-        padding: 10px 20px;
+        font-size: 15px;
+        padding: 9px 20px;
         transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
     }
 
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: white !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+        border-radius: 10px !important;
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
     }
 
     /* Links Styling */
@@ -338,7 +504,7 @@ st.markdown(
         margin-top: 25px;
         padding-top: 25px;
         border-top: 1px solid #e5e7eb;
-        font-family: 'Poppins', sans-serif;
+        font-family: 'Georgia', serif;
     }
 
     .login-link {
@@ -347,6 +513,7 @@ st.markdown(
         font-size: 14px;
         font-weight: 500;
         transition: color 0.3s ease;
+        font-family: 'Georgia', serif;
     }
 
     .login-link:hover {
@@ -354,30 +521,30 @@ st.markdown(
         text-decoration: underline;
     }
 
+    /* Primary Button Override - Custom Gradient */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border: none !important;
+        color: white !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        background: linear-gradient(90deg, #8f94fb, #764ba2) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+    }
+
     /* ==============================================
        DASHBOARD CONTENT STYLING
        ============================================== */
     .dashboard-header {
         background: linear-gradient(135deg, #f8f9ff, #e8ecff);
-        padding: 30px;
+        padding: clamp(20px, 4vw, 30px);
         border-radius: 16px;
         border: 1px solid #d1d9ff;
         margin-bottom: 30px;
         box-shadow: 0 4px 15px rgba(78, 84, 200, 0.08);
-    }
-
-    .welcome-text {
-        color: #4e54c8;
-        font-size: 28px;
-        font-weight: 700;
-        margin-bottom: 12px;
-        font-family: 'Poppins', sans-serif;
-    }
-
-    .welcome-subtitle {
-        color: #666;
-        font-size: 16px;
-        font-family: 'Poppins', sans-serif;
     }
 
     .feature-card:hover {
@@ -386,202 +553,298 @@ st.markdown(
         border-color: #d1d9ff;
     }
 
-    .feature-title {
-        color: #4e54c8;
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 8px;
-        font-family: 'Poppins', sans-serif;
-    }
-
-    .feature-description {
-        color: #6b7280;
-        font-size: 13px;
-        font-family: 'Poppins', sans-serif;
-        margin-bottom: 12px;
-    }
-
     /* Chat Styling */
-    .user-message {
-        text-align: right;
-        margin: 10px 0;
-    }
-
-    .user-bubble {
-        display: inline-block;
-        background: linear-gradient(135deg, #4e54c8, #8f94fb);
-        color: white;
+    .user-bubble, .assistant-bubble {
         padding: 12px 18px;
-        border-radius: 18px 18px 4px 18px;
-        max-width: 70%;
-        font-family: 'Poppins', sans-serif;
+        border-radius: 18px;
+        max-width: clamp(70%, 85%, 90%);
+        font-family: 'Georgia', serif;
         font-size: 14px;
-        box-shadow: 0 4px 12px rgba(78, 84, 200, 0.2);
-    }
-
-    .assistant-message {
-        margin: 10px 0;
-        color: #202123;
-    }
-
-    .assistant-bubble {
-        background: white;
-        padding: 12px 18px;
-        border-radius: 18px 18px 18px 4px;
-        max-width: 70%;
-        border: 1px solid #e5e7eb;
-        font-family: 'Poppins', sans-serif;
-        font-size: 14px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-
-    /* Quiz Styling */
-    .quiz-container {
-        background: linear-gradient(135deg, #f8f9ff, #e8ecff);
-        padding: 20px;
-        border-radius: 16px;
-        border: 1px solid #d1d9ff;
-        margin-top: 10px;
-        box-shadow: 0 4px 15px rgba(78, 84, 200, 0.1);
-        max-height: 60vh;
-        overflow-y: auto;
-    }
-
-    /* Coming Soon Styling */
-    .coming-soon {
-        text-align: center;
-        padding: 80px 40px;
-        background: linear-gradient(135deg, #f8f9ff, #e8ecff);
-        border-radius: 20px;
-        border: 2px dashed #d1d9ff;
-    }
-
-    .coming-soon-icon {
-        font-size: 72px;
-        margin-bottom: 24px;
-    }
-
-    .coming-soon-title {
-        color: #4e54c8;
-        font-size: 28px;
-        font-weight: 700;
-        margin-bottom: 12px;
-        font-family: 'Poppins', sans-serif;
-    }
-
-    .coming-soon-text {
-        color: #6b7280;
-        font-size: 16px;
-        font-family: 'Poppins', sans-serif;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        word-wrap: break-word;
     }
 
     /* Demo Button Styling */
-    .demo-button {
-        margin-top: 15px;
-    }
-
-    /* Input Labels Styling */
-    label {
-        font-weight: 600 !important;
-        font-size: 14px !important;
-        color: #374151 !important;
-        font-family: 'Poppins', sans-serif !important;
-        margin-bottom: 8px !important;
+    .dev-access-container {
+        margin-top: 30px;
+        padding: 20px;
+        background: #fff5f5;
+        border: 1px dashed #feb2b2;
+        border-radius: 12px;
+        text-align: center;
     }
 
     /* Streamlit Default Element Hides */
-    .stDeployButton {
-        display: none;
-    }
-
-    /* Block Container Styling */
-    .block-container {
-        padding-top: 30px !important;
-    }
-    
-    /* Remaining boilerplate CSS kept for completeness */
-    .sidebar-collapsed-toggle {
-        position: fixed;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 40px;
-        height: 40px;
-        background: linear-gradient(135deg, #4e54c8, #8f94fb);
-        border-radius: 0 20px 20px 0;
-        border: none;
-        border-right: 2px solid white;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
-        cursor: pointer;
-        z-index: 999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s ease;
-    }
-
-    .sidebar-collapsed-toggle:hover {
-        width: 45px;
-        box-shadow: 4px 4px 15px rgba(78, 84, 200, 0.3);
-    }
-
-    .sidebar-collapsed-toggle::after {
-        content: '→';
-        color: white;
-        font-size: 18px;
-        font-weight: bold;
-    }
+    .stDeployButton { display: none; }
 
     /* User Info Hover & Click Effects */
-    .user-info {
-        cursor: pointer !important;
-        transition: all 0.3s ease !important;
-    }
-
     .user-info:hover {
         background: linear-gradient(135deg, #e8ecff, #d6d9ff) !important;
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(78, 84, 200, 0.15) !important;
     }
 
-    /* Profile Dropdown (hidden by default) */
-    .profile-dropdown {
-        position: absolute;
-        top: 50px;
-        right: 20px;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        min-width: 200px;
-        z-index: 1000;
-        display: none;
-        overflow: hidden;
+    /* ==============================================
+       MEDIA QUERIES FOR RESPONSIVENESS
+       ============================================== */
+    
+    /* Extra Small Devices (Portrait Phones) */
+    @media only screen and (max-width: 480px) {
+        .main .block-container {
+            padding: 0.75rem !important;
+        }
+        .login-box-wrapper {
+            padding: 20px 15px !important;
+        }
+        .stButton > button {
+            padding: 8px 10px !important;
+        }
     }
 
-    .profile-dropdown.show {
-        display: block !important;
+    /* Mobile Devices (Phones) */
+    @media only screen and (max-width: 768px) {
+        .main .block-container {
+            padding-top: 1rem !important; 
+            padding-bottom: 1rem !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+
+        /* Navigation */
+        .nav-container {
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .nav-title {
+            font-size: 1.2rem !important;
+            text-align: center;
+        }
+
+        /* Chat Bubbles */
+        .user-bubble, .assistant-bubble {
+            max-width: 92% !important;
+            padding: 10px 14px !important;
+            font-size: 13px !important;
+        }
+        
+        /* Sidebar Elements */
+        [data-testid="stSidebar"] {
+            min-width: 250px !important;
+        }
     }
 
-    .dropdown-item {
-        padding: 12px 20px;
-        color: #4b5563;
-        font-size: 14px;
-        font-family: 'Poppins', sans-serif;
-        cursor: pointer;
-        transition: all 0.3s ease;
+    /* Tablets and Small Laptops */
+    @media only screen and (min-width: 769px) and (max-width: 1023px) {
+        .main .block-container {
+            padding: 1.5rem !important;
+        }
+        .user-bubble, .assistant-bubble {
+            max-width: 85% !important;
+        }
+        .login-box-wrapper {
+            max-width: 400px;
+        }
     }
 
-    .dropdown-item:hover {
-        background: #f8f9ff;
-        color: #4e54c8;
+    /* Small Laptops (13" laptops, 1024-1366px) */
+    @media only screen and (min-width: 1024px) and (max-width: 1366px) {
+        .main .block-container {
+            padding: 1.75rem !important;
+            max-width: 1100px;
+        }
+        
+        .user-bubble, .assistant-bubble {
+            max-width: 80% !important;
+            font-size: 14px !important;
+        }
+        
+        .login-box-wrapper {
+            max-width: 420px;
+            padding: 40px 35px;
+        }
+        
+        [data-testid="stSidebar"] {
+            min-width: 280px !important;
+        }
+        
+        .dashboard-header {
+            padding: clamp(18px, 3vw, 25px);
+        }
+        
+        .welcome-container {
+            padding: clamp(12px, 2.5vw, 25px);
+        }
     }
 
-    .dropdown-item:first-child {
-        padding-top: 16px;
+    /* Medium Laptops (14-15" laptops, 1367-1600px) */
+    @media only screen and (min-width: 1367px) and (max-width: 1600px) {
+        .main .block-container {
+            padding: 2rem !important;
+            max-width: 1300px;
+        }
+        
+        .user-bubble, .assistant-bubble {
+            max-width: 78% !important;
+        }
+        
+        .login-box-wrapper {
+            max-width: 440px;
+            padding: 45px 40px;
+        }
+        
+        [data-testid="stSidebar"] {
+            min-width: 300px !important;
+        }
+        
+        .dashboard-header {
+            padding: clamp(20px, 3.5vw, 28px);
+        }
     }
 
-    .dropdown-item:last-child {
-        padding-bottom: 16px;
+    /* Large Laptops (15-17" Full HD, 1601-1920px) */
+    @media only screen and (min-width: 1601px) and (max-width: 1920px) {
+        .main .block-container {
+            padding: 2.5rem !important;
+            max-width: 1400px;
+        }
+        
+        .user-bubble, .assistant-bubble {
+            max-width: 75% !important;
+        }
+        
+        .login-box-wrapper {
+            max-width: 460px;
+            padding: 50px 45px;
+        }
+        
+        [data-testid="stSidebar"] {
+            min-width: 320px !important;
+        }
+        
+        .dashboard-header {
+            padding: clamp(22px, 4vw, 30px);
+        }
+        
+        .stButton > button {
+            font-size: 16px !important;
+        }
+    }
+
+    /* Extra Large Screens (4K laptops, monitors, 1921px+) */
+    @media only screen and (min-width: 1921px) {
+        .main .block-container {
+            padding: 3rem !important;
+            max-width: 1600px;
+        }
+        
+        .user-bubble, .assistant-bubble {
+            max-width: 70% !important;
+            font-size: 15px !important;
+        }
+        
+        .login-box-wrapper {
+            max-width: 480px;
+            padding: 55px 50px;
+        }
+        
+        [data-testid="stSidebar"] {
+            min-width: 340px !important;
+        }
+        
+        .dashboard-header {
+            padding: 30px;
+        }
+        
+        .stButton > button {
+            font-size: 16px !important;
+            padding: 10px 14px !important;
+        }
+        
+        .main-title {
+            font-size: 48px;
+        }
+    }
+
+    /* Global Tab Hover Effect */
+    button[data-baseweb="tab"]:hover {
+        background: linear-gradient(90deg, #4e54c8, #8f94c8) !important;
+        color: white !important;
+        border-radius: 0px !important;
+        transition: all 0.3s ease !important;
+    }
+
+    /* Custom Font Color Override - Tabs */
+    .st-emotion-cache-1jsf23j, 
+    .st-emotion-cache-1jsf23j p, 
+    .st-emotion-cache-1jsf23j span {
+        color: #000000 !important;
+        transition: color 0.3s ease !important;
+    }
+
+    .st-emotion-cache-1jsf23j:hover,
+    .st-emotion-cache-1jsf23j:hover p,
+    .st-emotion-cache-1jsf23j:hover span,
+    .st-emotion-cache-1jsf23j[aria-selected="true"],
+    .st-emotion-cache-1jsf23j[aria-selected="true"] p,
+    .st-emotion-cache-1jsf23j[data-selected="true"] {
+        color: #FFFFFF !important;
+    }
+
+    /* Container Background Override */
+    .st-c2 {
+        background-color: #764ba2 !important;
+    }
+
+    /* Custom Emotion Cache Color Override */
+    .st-emotion-cache-11xx4re {
+        color: #8f94fb !important;
+    }
+
+    .st-emotion-cache-1lsfsc6 {
+        background: linear-gradient(90deg, #8f94fb, #764ba2) !important;
+    }
+
+    .st-emotion-cache-pxambx {
+        background: linear-gradient(90deg, #8f94fb, #764ba2) !important;
+    }
+
+    /* Global Placeholder Styling */
+    ::placeholder {
+        color: #8f94fb !important;
+        opacity: 0.8 !important;
+    }
+
+    /* Slider Styling */
+    .stSlider > div > div > div > div {
+        background-color: #8f94fb !important;
+    }
+    
+    .stSlider > div > div > div {
+        background-color: rgba(143, 148, 251, 0.2) !important;
+    }
+    
+    .stSlider [role="slider"] {
+        background-color: #8f94fb !important;
+    }
+    
+    .stSlider label {
+        color: #8f94fb !important;
+        font-weight: 600 !important;
+    }
+
+    /* Mobile Responsiveness for Login Logo */
+    @media (max-width: 480px) {
+        .login-logo-wrapper .lb-logo-svg {
+            width: 60px !important;
+            height: 60px !important;
+            min-width: 60px !important;
+        }
+        .login-logo-wrapper .lb-logo-text {
+            font-size: 28px !important;
+            margin-left: -5px !important;
+        }
     }
     </style>
     """,
@@ -589,35 +852,91 @@ st.markdown(
 )
 
 # ==========================
+# SIMPLE PASSWORD RESET
+# ==========================
+def show_simple_password_reset():
+    """Simple password reset using only username"""
+    st.markdown("""
+        <div class="welcome-container">
+            <h1 class="welcome-title">🔐 Reset Password</h1>
+            <p class="welcome-text">Enter your username to set a new password</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 1.5, 1])
+    with col2:
+        reset_username = st.text_input("Username", placeholder="Enter your username", key="reset_user_input")
+        
+        if reset_username:
+            from database import get_user_id_by_username, update_user_profile
+            user_id = get_user_id_by_username(reset_username)
+            
+            if user_id:
+                st.success(f"User '{reset_username}' found. Enter your new password below.")
+                new_pass = st.text_input("New Password", type="password", key="new_pass_simple")
+                confirm_pass = st.text_input("Confirm New Password", type="password", key="confirm_pass_simple")
+                
+                if st.button("Update Password", use_container_width=True):
+                    if new_pass == confirm_pass:
+                        if len(new_pass) < 6:
+                            st.error("Password must be at least 6 characters long")
+                        else:
+                            success, message = update_user_profile(user_id, new_password=new_pass)
+                            if success:
+                                st.success("Password updated successfully!")
+                                time.sleep(1.5)
+                                st.session_state.show_simple_reset = False
+                                st.rerun()
+                            else:
+                                st.error(message)
+                    else:
+                        st.error("Passwords do not match")
+            else:
+                st.error("User not found")
+        
+        if st.button("← Back to Login", use_container_width=True):
+            st.session_state.show_simple_reset = False
+            st.rerun()
+
+# ==========================
 # LOGIN AND SIGNUP SECTION
 # ==========================
 def show_login_page():
     """Display login/signup page with WordPress-style centered form"""
+    
+    # --- CSS INJECTION FOR BOLD FONTS ---
+    st.markdown(
+        """
+        <style>
+        /* Make the Labels (e.g. "Username") Bold */
+        .stTextInput label p {
+            font-weight: 700 !important;
+            font-size: 15px !important;
+            font-family: 'Georgia', serif !important;
+        }
+        
+        /* Make the Placeholders (e.g. "Enter your username") Bold */
+        .stTextInput input::placeholder {
+            font-weight: 700 !important;
+            color: #8f94fb !important; /* Updated brand color */
+            font-family: 'Georgia', serif !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+    # ------------------------------------
+
     # Center column approach for login form
     col1, col2, col3 = st.columns([1, 1.5, 1])
     
     with col2:
-        # Main title outside the centered box
-        st.markdown("""
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="font-size: 42px; font-weight: 800; color: #4e54c8; text-shadow: 2px 2px 4px rgba(78, 84, 200, 0.2); font-family: 'Poppins', sans-serif; margin-bottom: 8px;">
-                    🎓 Lecturebuddies
-                </h1>
-                <p style="color: #666; font-size: 16px; font-family: 'Poppins', sans-serif;">
-                    Your intelligent study companion—learn, create, and excel with AI
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
+        # Display SVG logo and tagline
+        logo_html = get_logo_svg(size_px=100, font_size_px=48)
+        tagline_html = '<div style="text-align: center; margin-top: 5px; margin-bottom: 30px;"><p style="color: #666; font-size: 16px; font-family: \'Georgia\', serif; margin-top: 5px; line-height: 1.6;">Your intelligent study companion—learn, create, and excel with AI</p></div>'
+        st.markdown(f'<div class="login-logo-wrapper" style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">{logo_html}{tagline_html}</div>', unsafe_allow_html=True)
         
-        st.markdown(
-            """
-            <div class="login-header">
-                <h2 class="login-title">Welcome Back!</h2>
-                <p class="login-subtitle">Sign in to continue to Lecturebuddies</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+       
         
         # Login/Signup Tabs
         tab1, tab2 = st.tabs(["Login", "Sign Up"])
@@ -628,40 +947,89 @@ def show_login_page():
 
             if st.button("Login", key="login_btn", help="Login to your account"):
                 if username and password:
-                    # Simple authentication (no database)
-                    if username == "student" and password == "lecturebuddies":
+                    # Authenticate using database
+                    success, message, user_id = authenticate_user(username, password)
+                    if success:
                         st.session_state.authenticated = True
                         st.session_state.current_user = username
-                        st.success("Login successful!")
+                        st.session_state.user_id = user_id
+                        # Load user stats
+                        st.session_state.user_stats = get_user_stats(user_id)
+                        st.success(message)
                         st.rerun()
                     else:
-                        st.error("Invalid credentials. Try: username='student', password='lecturebuddies'")
+                        st.error(message)
                 else:
                     st.warning("Please enter both username and password")
             
-            st.markdown("---")
-            if st.button("🔑 Try Demo Mode", key="demo_login", help="Quick demo access", use_container_width=True):
-                st.session_state.authenticated = True
-                st.session_state.current_user = "demo_user"
-                st.success("Demo login successful!")
+            # Simple Forgot Password Link
+            st.markdown('<div style="text-align: center; margin-top: 10px;">', unsafe_allow_html=True)
+            if st.button("Forgot Password?", key="forgot_pass_simple_btn"):
+                st.session_state.show_simple_reset = True
                 st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+            
 
         with tab2:
             new_username = st.text_input("Choose Username", placeholder="Enter your username", key="signup_username")
+            new_email = st.text_input("Email (optional)", placeholder="Enter your email", key="signup_email")
             new_password = st.text_input("Choose Password", type="password", placeholder="Enter your password", key="signup_password")
             confirm_password = st.text_input("Confirm Password", type="password", placeholder="Confirm your password", key="confirm_password")
 
             if st.button("Create Account", key="signup_btn", help="Create new account"):
                 if new_username and new_password and confirm_password:
                     if new_password == confirm_password:
-                        st.session_state.authenticated = True
-                        st.session_state.current_user = new_username
-                        st.success("Account created successfully!")
-                        st.rerun()
+                        if len(new_password) < 6:
+                            st.error("Password must be at least 6 characters long")
+                        else:
+                            # Create user in database
+                            success, message, user_id = create_user(new_username, new_password, new_email if new_email else None)
+                            if success:
+                                st.session_state.authenticated = True
+                                st.session_state.current_user = new_username
+                                st.session_state.user_id = user_id
+                                # Initialize user stats (will be all zeros for new user)
+                                st.session_state.user_stats = get_user_stats(user_id)
+                                st.success(message)
+                                st.rerun()
+                            else:
+                                st.error(message)
                     else:
                         st.error("Passwords don't match")
                 else:
-                    st.warning("Please fill in all fields")
+                    st.warning("Please fill in username and password fields")
+        
+        # Developer Demo Access (Temporary)
+        st.markdown('<div class="dev-access-container">', unsafe_allow_html=True)
+        st.markdown('<p class="dev-access-title">Developer Tools</p>', unsafe_allow_html=True)
+        if st.button("🚀 Demo Access (Dev Only)", key="demo_btn", help="Bypass login for development"):
+            # Use Developer account
+            # Create if doesn't exist, otherwise authenticate
+            success, message, user_id = create_user("Developer", "devpass123", "dev@lecturebuddies.com")
+            if not success and "exists" in message:
+                success, message, user_id = authenticate_user("Developer", "devpass123")
+            
+            if success:
+                st.session_state.authenticated = True
+                st.session_state.current_user = "Developer"
+                st.session_state.user_id = user_id
+                st.session_state.user_stats = get_user_stats(user_id)
+                st.success("Welcome, Developer! Access granted.")
+                time.sleep(1)
+                st.rerun()
+            else:
+                # Fallback if DB is completely broken
+                st.session_state.authenticated = True
+                st.session_state.current_user = "Developer"
+                st.session_state.user_id = 1
+                st.session_state.user_stats = {
+                    "study_sessions": 0, "quizzes_created": 0, "recordings_count": 0,
+                    "flashcards_created": 0, "notes_count": 0, "total_study_time": 0
+                }
+                st.warning("DB Access failed, using offline developer mode.")
+                time.sleep(1)
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================
 # DASHBOARD LAYOUT SECTION
@@ -688,20 +1056,20 @@ def show_dashboard():
                                   window.getComputedStyle(sidebar).width === '0px';
                 
                 if (isCollapsed || !sidebar.offsetParent) {
-                    // Sidebar is collapsed - show floating button
+                    # Sidebar is collapsed - show floating button
                     if (!floatingToggle) {
                         floatingToggle = document.createElement('div');
                         floatingToggle.id = 'floating-sidebar-toggle';
                         floatingToggle.className = 'sidebar-collapsed-toggle';
                         floatingToggle.onclick = function() {
-                            // Click the collapse button to expand
+                            # Click the collapse button to expand
                             const toggleBtn = document.querySelector('button[data-testid="baseButton-header"]');
                             if (toggleBtn) toggleBtn.click();
                         };
                         document.body.appendChild(floatingToggle);
                     }
                 } else {
-                    // Sidebar is expanded - hide floating button
+                    # Sidebar is expanded - hide floating button
                     if (floatingToggle) {
                         floatingToggle.remove();
                     }
@@ -737,29 +1105,69 @@ def show_dashboard():
                     background-color: transparent;
                     margin-bottom: 1rem;
                 }
-                .nav-title {
-                    color: #4e54c8;
-                    font-family: 'Poppins', sans-serif;
-                    font-weight: 700;
-                    font-size: 1.8rem;
-                    margin: 0;
-                    display: flex;
+                /* Navbar Container Styling */
+                div[data-testid="stHorizontalBlock"]:has(img[src^="data:image"]) {
+                    background: linear-gradient(135deg, #4e54c8, #8f94fb);
+                    padding: 1.5rem 2rem;
+                    border-radius: 16px;
+                    box-shadow: 0 4px 20px rgba(78, 84, 200, 0.2);
                     align-items: center;
-                    gap: 10px;
+                    margin-bottom: 0.5rem;
+                }
+
+                /* User Profile Button Styling - Glass Effect */
+                [data-testid="stPopover"] > button {
+                    background: rgba(255, 255, 255, 0.15) !important;
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+                    color: white !important;
+                    border-radius: 12px !important;
+                    padding: 0.5rem 1rem !important;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+                    font-family: 'Georgia', serif !important;
+                    font-weight: 600 !important;
+                    height: auto !important;
+                    transition: all 0.3s ease !important;
+                }
+                [data-testid="stPopover"] > button:hover {
+                    transform: translateY(-2px) !important;
+                    background: rgba(255, 255, 255, 0.25) !important;
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+                }
+                [data-testid="stPopover"] > button p {
+                    font-size: 16px !important;
+                    font-weight: 600 !important;
                 }
             </style>
         """, unsafe_allow_html=True)
         
-        # Flex-like layout using columns
+        # Flex-like layout using columns  
         col_nav_left, col_nav_spacer, col_nav_right = st.columns([4, 6, 2])
         
         with col_nav_left:
-            st.markdown('<h1 class="nav-title">🎓 Lecturebuddies</h1>', unsafe_allow_html=True)
+            # Display SVG logo in navigation
+            st.markdown(f'<div style="display: flex; align-items: center; width: fit-content;">{get_logo_svg(size_px=80, font_size_px=30)}</div>', unsafe_allow_html=True)
+            
+
+
+
+
+
+
+
+
+
             
         with col_nav_right:
             # Profile Menu logic
-            current_user = st.session_state.get("current_user", "Guest")
-            user_display = current_user if isinstance(current_user, str) else current_user.get("username", current_user.get("email", "Account"))
+            # Fetch display name and user info
+            user_id = st.session_state.get("user_id")
+            current_user = st.session_state.get("current_user", "Account")
+            display_name = st.session_state.get("user_display_name")
+            
+            # Normalize display name
+            user_display = display_name or (current_user if isinstance(current_user, str) else current_user.get("username", "Account"))
             
             with st.popover(f"👤 {user_display}", use_container_width=True):
                 st.markdown("### 👤 User Account")
@@ -767,12 +1175,17 @@ def show_dashboard():
                     st.markdown(f"**Email:** {current_user.get('email', 'N/A')}")
                     st.markdown(f"**Role:** {current_user.get('role', 'User')}")
                 else:
-                    st.markdown(f"**Status:** {current_user}")
+                    st.markdown(f"**User:** {current_user}")
+                
+                if st.button("👤 View Profile", key="nav_view_profile_btn", use_container_width=True):
+                    st.session_state.selected_feature = "profile"
+                    st.rerun()
                 
                 st.markdown("---")
                 if st.button("🚪 Log Out", key="nav_logout_btn", use_container_width=True, type="primary"):
                     st.session_state.authenticated = False
                     st.session_state.current_user = None
+                    st.session_state.user_id = None
                     st.session_state.selected_feature = None
                     st.rerun()
 
@@ -786,49 +1199,65 @@ def show_dashboard():
         # Determine if expander should be open (open if no feature selected)
         is_menu_expanded = st.session_state.selected_feature is None
         
-        with st.expander("🎓 Main Menu", expanded=is_menu_expanded):
+        with st.expander("Menu", expanded=is_menu_expanded):
             # Navigation menu
-            if st.button("🏠 Dashboard Home", key="nav_dashboard", use_container_width=True):
+            if st.button("Dashboard Home", key="nav_dashboard", use_container_width=True):
                 st.session_state.selected_feature = None
                 st.rerun()
             
-            if st.button("💬 Chatbot & Summarization", key="nav_chatbot", use_container_width=True):
+            if st.button("Chatbot & Summarization", key="nav_chatbot", use_container_width=True):
                 st.session_state.selected_feature = "chatbot"
                 st.rerun()
             
-            if st.button("📝 Quiz Generator", key="nav_quiz", use_container_width=True):
+            if st.button("Quiz Generator", key="nav_quiz", use_container_width=True):
                 st.session_state.selected_feature = "quiz"
                 st.rerun()
             
-            if st.button("🎤 Live Lecture Recording", key="nav_recording", use_container_width=True):
+            if st.button("Live Lecture Recording", key="nav_recording", use_container_width=True):
                 st.session_state.selected_feature = "recording"
                 st.rerun()
             
-            if st.button("📖 Flash Cards", key="nav_flashcards", use_container_width=True):
+            if st.button("Flash Cards", key="nav_flashcards", use_container_width=True):
                 st.session_state.selected_feature = "flashcards"
                 st.rerun()
             
-            if st.button("🌐 Translation", key="nav_translation", use_container_width=True):
+            if st.button("Translation", key="nav_translation", use_container_width=True):
                 st.session_state.selected_feature = "translation"
                 st.rerun()
             
-            if st.button("📋 Notes Manager", key="nav_notes", use_container_width=True):
-                st.session_state.selected_feature = "notes"
-                st.rerun()
-            
-            if st.button("👨‍💼 Admin Dashboard", key="nav_admin", use_container_width=True):
-                st.session_state.selected_feature = "admin"
-                st.rerun()
-            
-            if st.button("🔍 Search", key="nav_search", use_container_width=True):
+            if st.button("Search", key="nav_search", use_container_width=True):
                 st.session_state.selected_feature = "search"
                 st.rerun()
             
-            if st.button("📱 Offline Mode", key="nav_offline", use_container_width=True):
+            if st.button("Offline Mode", key="nav_offline", use_container_width=True):
                 st.session_state.selected_feature = "offline"
                 st.rerun()
             
-            if st.button("🚪 Logout", key="logout_btn", help="Logout from your account", use_container_width=True):
+            # OTHER Section
+            st.markdown('<hr style="margin: 15px 0 10px 0; border: none; height: 1px; background: #f0f4ff;">', unsafe_allow_html=True)
+            st.markdown('<p class="sidebar-title" style="margin-left: 10px;">OTHER</p>', unsafe_allow_html=True)
+            
+            if st.button("Profile", key="nav_profile", use_container_width=True):
+                st.session_state.selected_feature = "profile"
+                st.rerun()
+
+            # Custom styling for logout button
+            st.markdown("""
+                <style>
+                div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div:nth-last-child(1) button {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+                    color: white !important;
+                    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+                }
+                div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div:nth-last-child(1) button:hover {
+                    background: linear-gradient(90deg, #8f94fb, #764ba2) !important;
+                    transform: translateX(5px) translateY(-2px) !important;
+                    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+            
+            if st.button("Logout", key="logout_btn", help="Logout from your account", use_container_width=True):
                 st.session_state.authenticated = False
                 st.session_state.current_user = None
                 st.session_state.selected_feature = None
@@ -855,8 +1284,29 @@ def show_dashboard():
         show_search_feature()
     elif st.session_state.selected_feature == "offline":
         show_offline_feature()
+    elif st.session_state.selected_feature == "profile":
+        show_profile_feature()
     else:
         show_coming_soon_feature(st.session_state.selected_feature)
+
+def show_coming_soon_feature(feature_name):
+    """Placeholder for features not yet fully implemented"""
+    st.markdown(
+        f"""
+        <div class="coming-soon">
+            <div class="coming-soon-icon">🚀</div>
+            <h2 class="coming-soon-title">{feature_name.replace('_', ' ').title()} Feature</h2>
+            <p class="coming-soon-text">
+                We're working hard to bring you the best {feature_name.replace('_', ' ')} experience. 
+                This feature will be available in the next update!
+            </p>
+            <div style="text-align: center; margin-top: 30px;">
+                <p style="color: #667eea; font-weight: 600;">Stay tuned for educational excellence!</p>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # ==========================
 # WELCOME SCREEN SECTION
@@ -866,16 +1316,9 @@ def show_welcome_screen():
     # WELCOME MESSAGE CARD (THEMED BG)
     st.markdown(
         """
-        <div class="dashboard-header" style="
-            background: linear-gradient(135deg, #e8ecff, #f8f9ff); /* Lightened theme gradient */
-            border: 1px solid #d1d9ff; 
-            padding: 30px;
-            border-radius: 16px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 15px rgba(78, 84, 200, 0.08);
-        ">
-            <h2 class="welcome-text">Welcome to Lecturebuddies Dashboard!</h2>
-            <p style="color: #4e54c8; font-size: 16px; font-family: 'Poppins', sans-serif; font-weight: 500;">
+        <div class="welcome-container">
+            <h1 class="welcome-title">Welcome to your Dashboard!</h1>
+            <p class="welcome-text">
                 Your comprehensive educational platform powered by AI. Choose a feature from the sidebar to get started.
             </p>
         </div>
@@ -884,87 +1327,67 @@ def show_welcome_screen():
     )
 
     # Learning Statistics Cards
-    col1, col2, col3, col4 = st.columns(4)
+    # Get user stats from session state (loaded during login)
+    user_stats = st.session_state.get("user_stats", {})
+    study_sessions = user_stats.get("study_sessions", 0)
+    quizzes_created = user_stats.get("quizzes_created", 0)
+    recordings_count = user_stats.get("recordings_count", 0)
+    
+    # Calculate progress percentage (based on activity)
+    total_activities = study_sessions + quizzes_created + recordings_count
+    progress_percentage = min(100, total_activities * 5) if total_activities > 0 else 0
 
-    # --- CARD 1: Study Sessions (Themed BG) ---
-    with col1:
-        st.markdown(
-            """
-            <div class="feature-card" style="
-                background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
-                padding: 24px;
-                border-radius: 16px;
-                border: 1px solid #d1d9ff;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-            ">
+    # CSS for responsive grid of stats cards
+    st.markdown("""
+        <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
+            padding: 24px;
+            border-radius: 16px;
+            border: 1px solid #d1d9ff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            transition: transform 0.3s ease;
+        }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-value { color: #4e54c8; font-size: 32px; margin: 10px 0; font-weight: 700; }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+        <div class="stats-grid">
+            <div class="stat-card">
                 <h3 class="feature-title">Study Sessions</h3>
                 <p class="feature-description">Track your learning progress</p>
-                <h2 style="color: #4e54c8; font-size: 32px; margin: 10px 0;">24</h2>
+                <div class="stat-value">{study_sessions}</div>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    # --- CARD 2: Quizzes Created (Themed BG) ---
-    with col2:
-        st.markdown(
-            """
-            <div class="feature-card" style="
-                background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
-                padding: 24px;
-                border-radius: 16px;
-                border: 1px solid #d1d9ff;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-            ">
+            <div class="stat-card">
                 <h3 class="feature-title">Quizzes Created</h3>
                 <p class="feature-description">Interactive learning materials</p>
-                <h2 style="color: #4e54c8; font-size: 32px; margin: 10px 0;">12</h2>
+                <div class="stat-value">{quizzes_created}</div>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    # --- CARD 3: Recordings (Themed BG) ---
-    with col3:
-        st.markdown(
-            """
-            <div class="feature-card" style="
-                background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
-                padding: 24px;
-                border-radius: 16px;
-                border: 1px solid #d1d9ff;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-            ">
+            <div class="stat-card">
                 <h3 class="feature-title">Recordings</h3>
                 <p class="feature-description">Audio content processed</p>
-                <h2 style="color: #4e54c8; font-size: 32px; margin: 10px 0;">8</h2>
+                <div class="stat-value">{recordings_count}</div>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    # --- CARD 4: Progress (Themed BG) ---
-    with col4:
-        st.markdown(
-            """
-            <div class="feature-card" style="
-                background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
-                padding: 24px;
-                border-radius: 16px;
-                border: 1px solid #d1d9ff;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-            ">
+            <div class="stat-card">
                 <h3 class="feature-title">Progress</h3>
                 <p class="feature-description">Learning efficiency</p>
-                <h2 style="color: #4e54c8; font-size: 32px; margin: 10px 0;">85%</h2>
+                <div class="stat-value">{progress_percentage}%</div>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+        </div>
+    """, unsafe_allow_html=True)
 
     # Inspirational Quote (Themed BG)
+    quote_data = get_random_quote()
     st.markdown(
-        """
+        f"""
         <div class="feature-card" style="
             text-align: center; 
             margin-top: 30px;
@@ -979,7 +1402,7 @@ def show_welcome_screen():
                 font-size: 20px; 
                 font-weight: 700; 
                 margin-bottom: 15px; 
-                font-family: 'Poppins', sans-serif;
+                font-family: 'Georgia', serif;
             ">
                 Today's Learning Quote
             </h3>
@@ -987,18 +1410,18 @@ def show_welcome_screen():
                 color: #374151; 
                 font-size: 18px; 
                 font-style: italic; 
-                font-family: 'Poppins', sans-serif; 
+                font-family: 'Georgia', serif; 
                 margin: 0 0 10px 0;
             ">
-                "The capacity to learn is a gift; the ability to learn is a skill; the willingness to learn is a choice."
+                "{quote_data['text']}"
             </p>
             <p style="
                 color: #6b7280; 
                 font-size: 14px; 
                 margin-top: 10px; 
-                font-family: 'Poppins', sans-serif;
+                font-family: 'Georgia', serif;
             ">
-                — Brian Herbert
+                — {quote_data['author']}
             </p>
         </div>
         """,
@@ -1009,27 +1432,7 @@ def show_welcome_screen():
 # CHATBOT AND SUMMARIZATION SECTION
 # ==========================
 def show_chatbot_feature():
-    import streamlit as st
-    import requests
-    import PyPDF2
-    from docx import Document
-    import io
-    import os
-    from dotenv import load_dotenv
-    import os
-    import re
-    import PyPDF2
-    from docx import Document
-    from PIL import Image
-    import pytesseract
-    
-    
-    import os
-    import re
-    import PyPDF2
-    from docx import Document
-    from PIL import Image
-    import pytesseract
+
     
     
     # ✅ Configurable Tesseract OCR path with fallbacks
@@ -1199,7 +1602,8 @@ def show_chatbot_feature():
     # ---------------------------
     # Load API Key from .env
     # ---------------------------
-    # (Already loaded globally via st.secrets check)
+    load_dotenv()
+    api_key = os.getenv("GROQ_API_KEY")  # make sure your .env has GROQ_API_KEY=your_api_key_here
     
     if not api_key:
         st.error("⚠️ API key missing! Please check your .env file.")
@@ -1260,7 +1664,7 @@ def show_chatbot_feature():
         # Build conversation
         messages = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
         system_msg = (
-            f"You are LectureBuddies, an AI chatbot designed for education. "
+            f"You are Lecturebuddies, an AI chatbot designed for education. "
             f"Answer clearly, summarize effectively, and explain concepts step by step."
             f"{' Available Documents: ' + doc_context if doc_context else ''}\n\n"
             "Guidelines:\n"
@@ -1318,8 +1722,6 @@ def show_chatbot_feature():
     st.markdown(
         """
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
-        
         .main-title {
             text-align: center;
             font-size: 40px;
@@ -1329,14 +1731,14 @@ def show_chatbot_feature():
             -webkit-text-fill-color: transparent;
             background-clip: text;
             margin-bottom: -5px;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Georgia', serif;
         }
         .tagline {
             text-align: center;
             font-size: 16px;
             color: #666;
             margin-bottom: 15px;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Georgia', serif;
         }
         hr.gradient {
             border: none;
@@ -1359,7 +1761,7 @@ def show_chatbot_feature():
             cursor: pointer;
             transition: all 0.3s ease;
             text-align: center;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Georgia', serif;
             box-shadow: 0 3px 10px rgba(78, 84, 200, 0.3);
             margin: 5px 0;
         }
@@ -1390,7 +1792,7 @@ def show_chatbot_feature():
             font-weight: 700;
             margin-bottom: 10px;
             text-align: center;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Georgia', serif;
         }
         .user-message {
             text-align: right;
@@ -1403,7 +1805,7 @@ def show_chatbot_feature():
             padding: 10px 14px;
             border-radius: 18px 18px 4px 18px;
             max-width: 70%;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Georgia', serif;
             font-size: 14px;
             box-shadow: 0 2px 8px rgba(78, 84, 200, 0.3);
         }
@@ -1417,36 +1819,36 @@ def show_chatbot_feature():
             border-radius: 18px 18px 18px 4px;
             max-width: 70%;
             border: 1px solid #e0e0e0;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Georgia', serif;
             font-size: 14px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
         .welcome-container {
             text-align: center;
             padding: 20px;
-            background: linear-gradient(135deg, #f8f9ff, #e8ecff);
+            background: linear-gradient(90deg, #8f94fb, #764ba2 );
             border-radius: 15px;
             border: 1px solid #d1d9ff;
             margin: 10px 0;
         }
         .welcome-title {
-            color: #4e54c8;
+            color: #ffffff !important;
             font-size: 20px;
-            font-weight: 600;
+            font-weight: 700;
             margin-bottom: 10px;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Georgia', serif;
         }
         .welcome-text {
-            color: #666;
-            font-size: 14px;
-            font-family: 'Poppins', sans-serif;
+            color: #ffffff !important;
+            font-size: 16px;
+            font-family: 'Georgia', serif;
         }
         /* Professional chat input styling */
         .stChatInput > div > div > input {
             border: 2px solid #e0e0e0;
             border-radius: 25px;
             padding: 12px 16px;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Georgia', serif;
             font-size: 14px;
             background: white;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
@@ -1476,7 +1878,7 @@ def show_chatbot_feature():
         }
         /* Style sidebar elements */
         .stSidebar > div > div {
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Georgia', serif;
         }
         </style>
         """,
@@ -1493,7 +1895,7 @@ def show_chatbot_feature():
         if st.button("🗑️ Clear Chat", key="clear_chat", help="Start a new conversation"):
             st.session_state.messages.clear()
             st.rerun()
-        
+    
         st.markdown("---")
         st.markdown("**📎 Upload Files**")
         sidebar_upload = st.file_uploader(
@@ -1514,14 +1916,14 @@ def show_chatbot_feature():
             st.session_state.uploaded_files.append(file_details)
             st.sidebar.success(f"✅ {sidebar_upload.name} uploaded!")
             st.rerun()
-        
+    
         # Sidebar tips (Compact)
         st.markdown("---")
         st.markdown("**💡 Quick Tips:**")
         st.markdown("- Ask about studies or homework")
         st.markdown("- Upload files for context")
         st.markdown("- Be specific for better responses")
-        
+    
         # Show uploaded files (Styled)
         if st.session_state.uploaded_files:
             st.markdown("---")
@@ -1537,13 +1939,9 @@ def show_chatbot_feature():
                         st.session_state.document_contents.pop(fname, None)
                         st.rerun()
     
-    # ---------------------------
-    # Header (Exact Match to Quiz Structure: LectureBuddies - Chatbot)
-    # ---------------------------
-    st.markdown("<h1 class='main-title'>LectureBuddies</h1>", unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; color: #4e54c8; font-weight: 600; font-family: Poppins, sans-serif;'>Lecturebuddies - Chatbot</h2>", unsafe_allow_html=True)
-    st.markdown("<p class='tagline'>Your intelligent study companion—chat, summarize, and learn with AI ✨</p>", unsafe_allow_html=True)
-    st.markdown("<hr class='gradient'>", unsafe_allow_html=True)
+
+    
+   
     
     # ---------------------------
     # Quick Actions (Styled to Match)
@@ -1552,7 +1950,7 @@ def show_chatbot_feature():
         st.markdown(
             """
             <div class="welcome-container">
-                <h3 class="welcome-title">👋 Welcome to LectureBuddies Chat!</h3>
+                <h1 class="welcome-title">Lecturebuddies Chatbot</h1>
                 <p class="welcome-text">Start chatting or try a quick action below to dive into your studies.</p>
             </div>
             """,
@@ -1603,7 +2001,7 @@ def show_chatbot_feature():
     if user_input and user_input.strip():
         # 🔑 Inject file content here
         final_input = inject_file_content(user_input.strip())
-        
+    
         st.session_state.messages.append({"role": "user", "content": user_input.strip()})
         with st.spinner("🤔 Thinking..."):
             reply = get_groq_response(final_input)
@@ -1615,8 +2013,8 @@ def show_chatbot_feature():
     # ---------------------------
     st.markdown("---")
     st.markdown(
-        "<p style='text-align: center; color: #888; font-size: 12px; font-family: Poppins, sans-serif; margin-bottom: 0;'>"
-        "© 2023 LectureBuddies | Built with ❤️ for educational excellence | Powered by Groq AI</p>",
+        "<p style='text-align: center; color: #888; font-size: 12px; font-family: Georgia, serif; margin-bottom: 0;'>"
+        "© 2026 Lecturebuddies | Built with ❤️ for educational excellence | Powered by Groq AI</p>",
         unsafe_allow_html=True
     )
 
@@ -1665,14 +2063,11 @@ def show_quiz_feature():
         # Header
         st.markdown(
             """
-            <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #4e54c8; font-size: 28px; font-weight: 700; margin-bottom: 10px; font-family: 'Poppins', sans-serif;">
-                    lecturebuddies - Quiz Generator
-                </h1>
-                <p style="color: #666; font-size: 16px; font-family: 'Poppins', sans-serif;">
+            <div class="welcome-container">
+                <h1 class="welcome-title">Quiz Generator</h1>
+                <p class="welcome-text">
                     Transform your notes, lectures, or ideas into interactive quizzes with AI magic ✨
                 </p>
-                <hr style="border: 1px solid #4e54c8; margin: 20px 0;">
             </div>
             """,
             unsafe_allow_html=True
@@ -1693,7 +2088,13 @@ def show_quiz_feature():
                 if uploaded_file:
                     content = extract_content_from_file(uploaded_file)
                     if content and "Error" not in content:
-                        st.session_state.quiz_output = get_groq_quiz_response(content, num_questions, difficulty, model=st.session_state.quiz_model, temperature=st.session_state.quiz_temperature)
+                        quiz_result = get_groq_quiz_response(content, num_questions, difficulty, model=st.session_state.quiz_model, temperature=st.session_state.quiz_temperature)
+                        st.session_state.quiz_output = quiz_result
+                        # Save quiz to database
+                        if st.session_state.get("user_id") and "Error" not in quiz_result:
+                            save_quiz(st.session_state.user_id, uploaded_file.name, num_questions, difficulty, quiz_result)
+                            # Refresh user stats
+                            st.session_state.user_stats = get_user_stats(st.session_state.user_id)
                     else:
                         st.error("Failed to extract content from file. Please try a different file or format.")
                 else:
@@ -1711,7 +2112,22 @@ def show_quiz_feature():
 
             if st.button("✨ Generate Quiz from Prompt", key="prompt-btn", help=f"Create {num_questions} {difficulty} questions"):
                 if prompt_text.strip():
-                    st.session_state.quiz_output = get_groq_quiz_response(prompt_text, num_questions, difficulty, model=st.session_state.quiz_model, temperature=st.session_state.quiz_temperature)
+                    quiz_result = get_groq_quiz_response(prompt_text, num_questions, difficulty, model=st.session_state.quiz_model, temperature=st.session_state.quiz_temperature)
+                    st.session_state.quiz_output = quiz_result
+                    # Save quiz to database
+                    if st.session_state.get("user_id") and not quiz_result.startswith("Error"):
+                        save_quiz(st.session_state.user_id, f"Prompt: {prompt_text[:50]}...", num_questions, difficulty, quiz_result)
+                        # Save to local for offline access
+                        local_data = {
+                            "subject": f"Prompt: {prompt_text[:20]}...",
+                            "num_questions": num_questions,
+                            "difficulty": difficulty,
+                            "content": quiz_result
+                        }
+                        save_to_local(st.session_state.current_user, "quizzes", local_data)
+                        
+                        # Refresh user stats
+                        st.session_state.user_stats = get_user_stats(st.session_state.user_id)
                 else:
                     st.warning("Please enter some content or a topic!")
 
@@ -1727,7 +2143,22 @@ def show_quiz_feature():
 
             if st.button("✨ Generate Quiz from Text", key="scan-btn", help=f"Create {num_questions} {difficulty} questions"):
                 if scanned_text.strip():
-                    st.session_state.quiz_output = get_groq_quiz_response(scanned_text, num_questions, difficulty, model=st.session_state.quiz_model, temperature=st.session_state.quiz_temperature)
+                    quiz_result = get_groq_quiz_response(scanned_text, num_questions, difficulty, model=st.session_state.quiz_model, temperature=st.session_state.quiz_temperature)
+                    st.session_state.quiz_output = quiz_result
+                    # Save quiz to database
+                    if st.session_state.get("user_id") and not quiz_result.startswith("Error"):
+                        save_quiz(st.session_state.user_id, "Text Input", num_questions, difficulty, quiz_result)
+                        # Save to local for offline access
+                        local_data = {
+                            "subject": "Text Input Quiz",
+                            "num_questions": num_questions,
+                            "difficulty": difficulty,
+                            "content": quiz_result
+                        }
+                        save_to_local(st.session_state.current_user, "quizzes", local_data)
+                        
+                        # Refresh user stats
+                        st.session_state.user_stats = get_user_stats(st.session_state.user_id)
                 else:
                     st.warning("Please paste some text!")
 
@@ -1742,7 +2173,7 @@ def show_quiz_feature():
                 st.markdown(
                     """
                     <div class="quiz-container">
-                        <h3 style="color: #4e54c8; font-size: 22px; font-weight: 700; margin-bottom: 10px; text-align: center; font-family: 'Poppins', sans-serif;">
+                        <h3 style="color: #4e54c8; font-size: 22px; font-weight: 700; margin-bottom: 10px; text-align: center; font-family: 'Georgia', serif;">
                             Your Generated Quiz
                         </h3>
                         <p style="text-align: center; color: #666; font-style: italic; font-size: 14px;">
@@ -1776,11 +2207,9 @@ def show_recording_feature():
     # 1. Main heading
     st.markdown(
         """
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #4e54c8; font-size: 32px; font-weight: 700; margin-bottom: 10px; font-family: 'Poppins', sans-serif;">
-                🎤 LectureBuddies — Speech to Text
-            </h1>
-            <p style="color: #666; font-size: 16px; font-family: 'Poppins', sans-serif;">
+        <div class="welcome-container">
+            <h1 class="welcome-title">Speech to Text</h1>
+            <p class="welcome-text">
                 Upload voice recordings or record live audio for real-time transcription
             </p>
         </div>
@@ -1850,7 +2279,7 @@ def show_recording_feature():
                                 os.remove(temp_path)
 
     # ==========================
-    # TAB 2: Realtime Transcript (UPDATED FOR INTERNET)
+    # TAB 2: Realtime Transcript (UPDATED CODE)
     # ==========================
     with tab2:
         st.markdown("### ⚡ Fast Real-time Transcription")
@@ -1858,20 +2287,27 @@ def show_recording_feature():
         # Initialize session state for transcript storage
         if "live_transcript" not in st.session_state:
             st.session_state.live_transcript = ""
+        if "is_recording" not in st.session_state:
+            st.session_state.is_recording = False
 
         col1, col2 = st.columns([1, 2])
 
         with col1:
-            st.info("💡 **Instructions:**\n1. Click 'Record' below.\n2. Speak.\n3. Click 'Stop' to send audio to AI.\n(Note: On the internet, audio processes after you stop speaking).")
+            st.info("💡 **Instructions:**\n1. Click 'Start Recording'.\n2. Speak into your mic.\n3. The text will appear instantly.\n4. Click 'Stop Recording' to end the session.")
             
-            # Use web-recorder instead of local mic
-            audio_data = mic_recorder(
-                start_prompt="🔴 Start Recording",
-                stop_prompt="⏹️ Stop & Transcribe",
-                key='recorder',
-                format='wav',
-                use_container_width=True
-            )
+            # Start/Stop Button
+            if not st.session_state.is_recording:
+                start_recording = st.button("🔴 Start Live Recording", use_container_width=True)
+                if start_recording:
+                    st.session_state.is_recording = True
+                    st.rerun()
+            else:
+                stop_recording = st.button("⏹️ Stop Recording", use_container_width=True, type="primary")
+                if stop_recording:
+                    st.session_state.is_recording = False
+                    st.rerun()
+            
+            start_recording = st.session_state.is_recording
             
             # Download Button (Visible if we have text)
             if st.session_state.live_transcript:
@@ -1889,31 +2325,89 @@ def show_recording_feature():
 
         with col2:
             st.markdown("#### 📝 Live Output")
+            # Create a placeholder to update text in real-time
+            transcript_placeholder = st.empty()
             
-            # Logic to process audio when user stops recording
-            if audio_data is not None:
-                with st.spinner("⚡ Transcribing audio chunk..."):
-                    # Save bytes to temp file for Whisper
-                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
-                        tmp_audio.write(audio_data['bytes'])
-                        tmp_audio_path = tmp_audio.name
-                    
-                    try:
-                        # Transcribe
-                        segments, _ = model.transcribe(tmp_audio_path, beam_size=1, language="en")
-                        new_text = "".join([s.text for s in segments]).strip()
-                        
-                        if new_text:
-                            st.session_state.live_transcript += new_text + " "
-                            st.success("Audio processed!")
-                    except Exception as e:
-                        st.error(f"Error processing audio: {e}")
-                    finally:
-                        if os.path.exists(tmp_audio_path):
-                            os.remove(tmp_audio_path)
+            # Show existing transcript if not recording
+            if not start_recording:
+                transcript_placeholder.text_area("Transcript", value=st.session_state.live_transcript, height=400, disabled=True)
 
-            # Show existing transcript
-            st.text_area("Transcript", value=st.session_state.live_transcript, height=400, disabled=True)
+            # ==========================
+            # THE NEW LOGIC INTEGRATION
+            # ==========================
+            if start_recording:
+                # 1. Setup Speech Recognition
+                recognizer = sr.Recognizer()
+                recognizer.energy_threshold = 1000  
+                recognizer.dynamic_energy_threshold = False
+                recognizer.pause_threshold = 0.3    
+                recognizer.phrase_threshold = 0.3    
+                recognizer.non_speaking_duration = 0.3
+                
+                mic = sr.Microphone(sample_rate=16000)
+                
+                # Visual Indicator
+                st.toast("🎤 Listening... Speak now!", icon="👂")
+                
+                # Session ID for saving
+                session_start_time = int(time.time())
+                session_filename = f"recording_{session_start_time}_transcripts.json"
+                
+                with mic as source:
+                    recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                    
+                    # We use a loop here. In Streamlit, this runs until the user stops/refreshes.
+                    try:
+                        while st.session_state.is_recording:
+                            # 2. Listen
+                            # We use a placeholder info to show "Listening"
+                            status_ph = st.empty()
+                            status_ph.caption("👂 Listening...")
+                            
+                            audio_data = recognizer.listen(source, timeout=None, phrase_time_limit=5) # 5s chunks for fluidity
+                            
+                            status_ph.caption("⚡ Processing...")
+                            
+                            # 3. Process Audio for Whisper
+                            raw_data = audio_data.get_raw_data()
+                            audio_np = np.frombuffer(raw_data, dtype=np.int16).astype(np.float32) / 32768.0
+
+                            # 4. Transcribe (Fastest Settings)
+                            segments, _ = model.transcribe(audio_np, beam_size=1, language="en", vad_filter=False)
+                            new_text = "".join([s.text for s in segments]).strip()
+
+                            if new_text:
+                                # Append to session state
+                                st.session_state.live_transcript += new_text + " "
+                                
+                                # Update the UI immediately
+                                transcript_placeholder.text_area(
+                                    "Transcript (Recording...)", 
+                                    value=st.session_state.live_transcript, 
+                                    height=400
+                                )
+                                
+                                # Save incrementally to local (or save final on stop, but incremental ensures data safety)
+                                # For strict "generated online" rule, we assume this is "generating" phase.
+                                # To avoid too many writes, only save every 10th update or just keep in memory until stop?
+                                # Better: Save here to ensure persistence if app crashes, but maybe overwrite same file.
+                                # Actually, user mostly wants "final" transcript.
+                                # Let's save the current full transcript.
+                                local_data = {
+                                    "title": f"Live Recording {time.strftime('%H:%M', time.localtime(session_start_time))}",
+                                    "content": st.session_state.live_transcript,
+                                    "saved_at": int(time.time())
+                                }
+                                save_to_local(st.session_state.current_user, "transcripts", local_data, custom_filename=session_filename)
+                                
+                            status_ph.empty()
+                            
+                    except Exception as e:
+                        st.error(f"Recording stopped or error: {e}")
+
+
+
+
 
 # ==========================
 # FLASH CARDS FEATURE
@@ -1922,11 +2416,9 @@ def show_flashcards_feature():
     """Display flash cards generator feature"""
     st.markdown(
         """
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #4e54c8; font-size: 32px; font-weight: 700; margin-bottom: 10px; font-family: 'Poppins', sans-serif;">
-                📖 Flash Cards Generator
-            </h1>
-            <p style="color: #666; font-size: 16px; font-family: 'Poppins', sans-serif;">
+        <div class="welcome-container">
+            <h1 class="welcome-title">Flash Cards Generator</h1>
+            <p class="welcome-text">
                 Create interactive flash cards from your study materials
             </p>
         </div>
@@ -1954,13 +2446,7 @@ def show_flashcards_feature():
         )
     
     with col2:
-        st.markdown("### 📝 Content Input")
-        
-        content_input = st.text_area(
-            "Or paste your study content here",
-            placeholder="Paste your study material, lecture notes, or textbook content...",
-            height=200
-        )
+       
         
         if st.button("🎯 Generate Flash Cards", key="generate_cards", use_container_width=True):
             if content_input or uploaded_file:
@@ -1968,6 +2454,15 @@ def show_flashcards_feature():
                     # Generate flash cards using AI
                     flashcards = generate_flashcards(content_input or "Sample content", num_cards, difficulty, subject)
                     st.session_state.flashcards = flashcards
+                    
+                    # Save to local for offline access
+                    local_data = {
+                        "subject": subject or "General Flashcards",
+                        "difficulty": difficulty,
+                        "cards": flashcards
+                    }
+                    save_to_local(st.session_state.current_user, "flashcards", local_data)
+                    
                     st.success(f"✅ Generated {len(flashcards)} flash cards!")
             else:
                 st.warning("Please provide content to generate flash cards")
@@ -2097,11 +2592,9 @@ def show_translation_feature():
     """Display multilingual translation feature"""
     st.markdown(
         """
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #4e54c8; font-size: 32px; font-weight: 700; margin-bottom: 10px; font-family: 'Poppins', sans-serif;">
-                🌐 Multilingual Translation
-            </h1>
-            <p style="color: #666; font-size: 16px; font-family: 'Poppins', sans-serif;">
+        <div class="welcome-container">
+            <h1 class="welcome-title"> Multilingual Translation</h1>
+            <p class="welcome-text">
                 Translate text to your selected language (source auto-detected)
             </p>
         </div>
@@ -2218,11 +2711,9 @@ def show_notes_feature():
     """Display notes manager with import/export and organization"""
     st.markdown(
         """
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #4e54c8; font-size: 32px; font-weight: 700; margin-bottom: 10px; font-family: 'Poppins', sans-serif;">
-                📋 Notes Manager
-            </h1>
-            <p style="color: #666; font-size: 16px; font-family: 'Poppins', sans-serif;">
+        <div class="welcome-container">
+            <h1 class="welcome-title">📋 Notes Manager</h1>
+            <p class="welcome-text">
                 Organize, import, and export your study notes with rich text formatting
             </p>
         </div>
@@ -2312,6 +2803,10 @@ def show_notes_feature():
                     "modified": time.time()
                 }
                 st.session_state.notes.append(new_note)
+                
+                # Save to local for offline access
+                save_to_local(st.session_state.current_user, "notes", new_note)
+                
                 st.success("✅ Note saved successfully!")
                 st.rerun()
             else:
@@ -2345,10 +2840,10 @@ def show_admin_feature():
     st.markdown(
         """
         <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #4e54c8; font-size: 32px; font-weight: 700; margin-bottom: 10px; font-family: 'Poppins', sans-serif;">
+            <h1 style="color: #4e54c8; font-size: 32px; font-weight: 700; margin-bottom: 10px; font-family: 'Georgia', serif;">
                 👨‍💼 Admin Dashboard
             </h1>
-            <p style="color: #666; font-size: 16px; font-family: 'Poppins', sans-serif;">
+            <p style="color: #666; font-size: 16px; font-family: 'Georgia', serif;">
                 System management and analytics for administrators
             </p>
         </div>
@@ -2414,11 +2909,9 @@ def show_search_feature():
     """Display categorized search functionality"""
     st.markdown(
         """
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #4e54c8; font-size: 32px; font-weight: 700; margin-bottom: 10px; font-family: 'Poppins', sans-serif;">
-                🔍 Categorized Search
-            </h1>
-            <p style="color: #666; font-size: 16px; font-family: 'Poppins', sans-serif;">
+        <div class="welcome-container">
+            <h1 class="welcome-title">🔍 Categorized Search</h1>
+            <p class="welcome-text">
                 Search across all your content with advanced filtering and categorization
             </p>
         </div>
@@ -2449,7 +2942,7 @@ def show_search_feature():
         tags_filter = st.text_input("Tags", placeholder="e.g., important, exam")
     
     with col2:
-        st.markdown("### 🔎 Search Query")
+        st.markdown("### Search Query")
         
         search_query = st.text_input(
             "Enter your search query",
@@ -2457,7 +2950,7 @@ def show_search_feature():
             key="search_input"
         )
         
-        if st.button("🔍 Search", key="perform_search", use_container_width=True):
+        if st.button(" Search", key="perform_search", use_container_width=True):
             if search_query:
                 with st.spinner("Searching..."):
                     results = perform_search(search_query, search_categories, date_range, content_type, tags_filter)
@@ -2468,7 +2961,7 @@ def show_search_feature():
         
         # Display search results
         if st.session_state.get('search_results'):
-            st.markdown("### 📋 Search Results")
+            st.markdown("###  Search Results")
             display_search_results(st.session_state.search_results)
 
 def perform_search(query, categories, date_range, content_type, tags_filter):
@@ -2529,87 +3022,326 @@ def display_search_results(results):
 # OFFLINE MODE FEATURE
 # ==========================
 def show_offline_feature():
-    """Display offline mode functionality"""
+    """Display offline mode functionality with access to saved content"""
+    # 1. Header & Status
     st.markdown(
         """
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #4e54c8; font-size: 32px; font-weight: 700; margin-bottom: 10px; font-family: 'Poppins', sans-serif;">
-                📱 Offline Mode
-            </h1>
-            <p style="color: #666; font-size: 16px; font-family: 'Poppins', sans-serif;">
-                Access your content and basic features without internet connection
+        <div class="welcome-container">
+            <h1 class="welcome-title">Offline Mode</h1>
+            <p class="welcome-text">
+                Access your previously generated content without internet
             </p>
         </div>
         """,
         unsafe_allow_html=True
     )
     
-    # Check internet connection
+    # Check connection
     try:
-        requests.get("https://www.google.com", timeout=5)
-        internet_status = "🟢 Online"
-        connection_color = "#28a745"
+        requests.get("https://www.google.com", timeout=2)
+        is_online = True
+        status_color = "#28a745"
+        status_text = "Connected"
     except:
-        internet_status = "🔴 Offline"
-        connection_color = "#dc3545"
-    
+        is_online = False
+        status_color = "#dc3545"
+        status_text = "Disconnected"
+        
     st.markdown(
         f"""
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0; text-align: center;">
-            <h3 style="color: {connection_color}; margin-bottom: 10px;">Connection Status: {internet_status}</h3>
-            <p style="color: #666;">Current mode: {'Offline' if 'Offline' in internet_status else 'Online'}</p>
+        <div style="background: white; padding: 15px; border-radius: 12px; border-left: 5px solid {status_color}; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <strong style="color: {status_color}; font-size: 18px;">● {status_text}</strong>
+                <div style="color: #666; font-size: 14px; margin-top: 5px;">
+                    {'You have full access to all features.' if is_online else 'Restricted to saved content only.'}
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span style="background: #f0f2f6; padding: 5px 10px; border-radius: 15px; font-size: 12px; color: #555;">
+                    Data Source: Local Storage
+                </span>
+            </div>
         </div>
         """,
         unsafe_allow_html=True
     )
+
+    if not is_online:
+        st.info("⚠️ You are currently offline. AI features (Chat, Quiz Generation) are unavailable. displaying locally saved copies.")
+        
+    # 2. Offline Content Viewer
+    if not st.session_state.current_user:
+        st.warning("Please log in to view saved content.")
+        return
+
+    st.markdown("### 📂 Saved Library")
     
-    col1, col2 = st.columns(2)
+    tab1, tab2, tab3, tab4 = st.tabs(["📝 Saved Quizzes", "🎴 Flash Cards", "📔 Notes", "🎙️ Transcripts"])
     
-    with col1:
-        st.markdown("### 📱 Offline Features")
+    # --- Saved Quizzes ---
+    with tab1:
+        quizzes = load_from_local(st.session_state.current_user, "quizzes")
+        if not quizzes:
+            st.info("No saved quizzes found. Generate quizzes while online to see them here.")
+        else:
+            for q in quizzes:
+                date_str = time.strftime('%Y-%m-%d %H:%M', time.localtime(q.get('saved_at', 0)))
+                with st.expander(f"📝 Quiz: {q.get('subject', 'General')} - {date_str}"):
+                    st.markdown(f"**Difficulty:** {q.get('difficulty')} | **Questions:** {q.get('num_questions')}")
+                    if st.button("👁️ View Quiz", key=f"view_quiz_{q.get('saved_at')}"):
+                        st.markdown("---")
+                        st.text(q.get('content', 'No content'))
+    
+    # --- Saved Flash Cards ---
+    with tab2:
+        flashcards_sets = load_from_local(st.session_state.current_user, "flashcards")
+        if not flashcards_sets:
+            st.info("No saved flash cards found.")
+        else:
+            for fc_set in flashcards_sets:
+                date_str = time.strftime('%Y-%m-%d %H:%M', time.localtime(fc_set.get('saved_at', 0)))
+                with st.expander(f"🎴 Deck: {fc_set.get('subject', 'General')} - {date_str}"):
+                    cards = fc_set.get('cards', [])
+                    st.markdown(f"**{len(cards)} Cards**")
+                    if st.button("👁️ View Deck", key=f"view_fc_{fc_set.get('saved_at')}"):
+                        for card in cards:
+                            st.markdown(f"**Q:** {card['front']}")
+                            st.markdown(f"**A:** {card['back']}")
+                            st.markdown("---")
+
+    # --- Saved Notes ---
+    with tab3:
+        notes = load_from_local(st.session_state.current_user, "notes")
+        if not notes:
+            st.info("No saved notes found.")
+        else:
+            for note in notes:
+                date_str = time.strftime('%Y-%m-%d %H:%M', time.localtime(note.get('saved_at', 0)))
+                with st.expander(f"📔 {note.get('title', 'Untitled')} - {date_str}"):
+                    st.markdown(f"**Category:** {note.get('category')}")
+                    st.markdown("---")
+                    st.markdown(note.get('content', ''))
+
+    # --- Saved Transcripts ---
+    with tab4:
+        transcripts = load_from_local(st.session_state.current_user, "transcripts")
+        if not transcripts:
+            st.info("No saved transcripts found.")
+        else:
+            for trans in transcripts:
+                date_str = time.strftime('%Y-%m-%d %H:%M', time.localtime(trans.get('saved_at', 0)))
+                with st.expander(f"🎙️ Recording: {trans.get('title', 'Untitled')} - {date_str}"):
+                    st.text_area("Transcript", trans.get('content', ''), height=300, key=f"read_trans_{trans.get('saved_at')}")
+
+def show_profile_feature():
+    """Display user profile feature with modern, minimal UI"""
+    st.markdown(
+        """
+        <div class="welcome-container">
+            <h1 class="welcome-title">👤 User Profile</h1>
+            <p class="welcome-text">Manage your personal identity, view insights, and control your account.</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    if not st.session_state.user_id:
+        st.warning("Please log in to view your profile.")
+        return
+
+    # Fetch latest user data (for display name, etc.)
+    user_data = get_full_user_data(st.session_state.user_id)
+    profile = user_data.get("profile", {})
+    stats = user_data.get("stats", {})
+    
+    # Sync display name to session state for navigation
+    if profile.get("display_name"):
+        st.session_state.user_display_name = profile["display_name"]
+    
+    # Custom CSS for Profile Cards
+    st.markdown("""
+        <style>
+        
+        .profile-label {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .profile-value {
+            font-size: 16px;
+            color: #111827;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+        .insight-card {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #f3f4f6;
+            text-align: center;
+        }
+        .danger-zone {
+            border: 1px solid #fee2e2;
+            background: #fffafb;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    tab1, tab2, tab3 = st.tabs(["👤 Identity", "📈 Insights", "🔐 Settings"])
+
+    with tab1:
+        st.markdown('<div class="profile-section">', unsafe_allow_html=True)
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:
+            # Simple circular avatar placeholder
+            initials = profile.get("username", "U")[:2].upper()
+            st.markdown(f"""
+                <div style="
+                    width: 100px; height: 100px; 
+                    background: linear-gradient(135deg, #4e54c8, #8f94fb); 
+                    border-radius: 50%; 
+                    display: flex; align-items: center; justify-content: center; 
+                    color: white; font-size: 32px; font-weight: 700;
+                    margin: 0 auto 20px auto;
+                ">
+                    {initials}
+                </div>
+            """, unsafe_allow_html=True)
+            
+        with col2:
+            current_display_name = profile.get("display_name") or profile.get("username")
+            st.markdown(f'<div class="profile-label">Username</div><div class="profile-value">{profile.get("username")}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="profile-label">Email Address</div><div class="profile-value">{profile.get("email") or "Not provided"}</div>', unsafe_allow_html=True)
+            
+            new_display_name = st.text_input("Display Name", value=current_display_name, help="How you want to be called in the app")
+            
+            if st.button("Update Profile", type="primary"):
+                success, msg = update_user_profile(st.session_state.user_id, display_name=new_display_name)
+                if success:
+                    st.success("Profile updated! Refreshing...")
+                    st.session_state.user_display_name = new_display_name
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(msg)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with tab2:
+        st.markdown('<div class="profile-section">', unsafe_allow_html=True)
+        st.subheader("Light Usage Insights")
+        st.markdown("These insights reflect your journey with Lecturebuddies. Keep up the great work!")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown('<div class="insight-card">', unsafe_allow_html=True)
+            st.metric("Study Sessions", stats.get("study_sessions", 0))
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+        with col2:
+            st.markdown('<div class="insight-card">', unsafe_allow_html=True)
+            st.metric("Quizzes Created", stats.get("quizzes_created", 0))
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+        with col3:
+            st.markdown('<div class="insight-card">', unsafe_allow_html=True)
+            st.metric("Recordings", stats.get("recordings_count", 0))
+            st.markdown('</div>', unsafe_allow_html=True)
+            
         st.markdown("---")
         
-        offline_features = [
-            "📚 View saved notes",
-            "🃏 Review flash cards", 
-            "📝 Read saved quizzes",
-            "🎧 Play downloaded recordings",
-            "🔍 Search local content",
-            "📊 View offline analytics"
-        ]
+        # Calculate most used feature
+        feature_counts = {
+            "Chatbot": stats.get("study_sessions", 0),
+            "Quizzes": stats.get("quizzes_created", 0),
+            "Recordings": stats.get("recordings_count", 0),
+            "Flashcards": stats.get("flashcards_created", 0),
+            "Notes": stats.get("notes_count", 0)
+        }
+        most_used = max(feature_counts, key=feature_counts.get)
         
-        for feature in offline_features:
-            st.markdown(f"✅ {feature}")
+        st.info(f"✨ **Motivational Tip:** You mostly use **{most_used}**. Try exploring other features to diversify your study routine!")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with tab3:
+        st.markdown('<div class="profile-section">', unsafe_allow_html=True)
+        st.subheader("Account Management")
         
-        st.markdown("---")
-        st.markdown("### 💾 Sync Options")
-        
-        if st.button("🔄 Sync Now", key="sync_now"):
-            if "Offline" in internet_status:
-                st.warning("⚠️ No internet connection. Sync will happen when you're back online.")
-            else:
-                st.success("✅ Sync completed! All offline content updated.")
-    
-    with col2:
-        st.markdown("### 📊 Offline Content")
-        
-        # Display offline content stats
-        st.metric("Saved Notes", "23")
-        st.metric("Flash Cards", "156")
-        st.metric("Quizzes", "12")
-        st.metric("Recordings", "8")
+        with st.expander("🔐 Change Password"):
+            new_pwd = st.text_input("New Password", type="password")
+            confirm_pwd = st.text_input("Confirm New Password", type="password")
+            if st.button("Change Password"):
+                if new_pwd == confirm_pwd and len(new_pwd) >= 6:
+                    success, msg = update_user_profile(st.session_state.user_id, new_password=new_pwd)
+                    if success: st.success("Password changed successfully!")
+                    else: st.error(msg)
+                else:
+                    st.error("Passwords must match and be at least 6 characters.")
         
         st.markdown("---")
-        st.markdown("### ⚙️ Offline Settings")
         
-        auto_sync = st.checkbox("Auto-sync when online", value=True)
-        download_quality = st.selectbox("Download Quality", ["High", "Medium", "Low"])
-        storage_limit = st.slider("Storage Limit (GB)", 1, 10, 5)
+        col_export, col_logout = st.columns(2)
+        with col_export:
+            st.markdown("**Data Portability**")
+            st.markdown("Download a copy of all your data.")
+            if st.button("Export Data (JSON)"):
+                full_data = get_full_user_data(st.session_state.user_id)
+                st.download_button(
+                    label="Download JSON",
+                    data=json.dumps(full_data, indent=2),
+                    file_name=f"lecturebuddies_data_{profile.get('username')}.json",
+                    mime="application/json"
+                )
+                
+        with col_logout:
+            st.markdown("**Session Control**")
+            st.markdown("Sign out of your account.")
+            if st.button("🚪 Logout Now", key="profile_logout_btn"):
+                st.session_state.authenticated = False
+                st.session_state.current_user = None
+                st.session_state.user_id = None
+                st.session_state.selected_feature = None
+                st.rerun()
+
+        st.markdown("---")
+        st.markdown('<div class="danger-zone">', unsafe_allow_html=True)
+        st.markdown('<h4 style="color: #c53030; margin-top: 0;">⚠️ Danger Zone</h4>', unsafe_allow_html=True)
+        st.markdown("Deleting your account is permanent and cannot be undone.")
         
-        if st.button("💾 Download for Offline", key="download_offline"):
-            st.info("📥 Downloading content for offline use...")
-            st.progress(0.7)
-            st.success("✅ Offline content ready!")
+        if "confirm_delete" not in st.session_state:
+            st.session_state.confirm_delete = False
+            
+        if not st.session_state.confirm_delete:
+            if st.button("Delete My Account", type="secondary"):
+                st.session_state.confirm_delete = True
+                st.rerun()
+        else:
+            st.warning("Are you absolutely sure? This will delete all your quizzes, notes, and recordings.")
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                if st.button("🔥 Yes, Delete Permanently", type="primary"):
+                    success, msg = delete_user_account(st.session_state.user_id)
+                    if success:
+                        st.session_state.authenticated = False
+                        st.session_state.current_user = None
+                        st.session_state.user_id = None
+                        st.session_state.selected_feature = None
+                        st.session_state.confirm_delete = False
+                        st.success("Account deleted. Goodbye!")
+                        time.sleep(2)
+                        st.rerun()
+                    else:
+                        st.error(msg)
+            with col_d2:
+                if st.button("Cancel"):
+                    st.session_state.confirm_delete = False
+                    st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================
 # HELPER FUNCTIONS
@@ -2644,7 +3376,7 @@ def get_groq_response(user_input, model="llama-3.1-8b-instant", temperature=0.7)
     # Build conversation
     messages = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
     system_msg = (
-        f"You are LectureBuddies, an AI chatbot designed for education. "
+        f"You are Lecturebuddies, an AI chatbot designed for education. "
         f"Answer clearly, summarize effectively, and explain concepts step by step."
         f"{' Available Documents: ' + doc_context if doc_context else ''}\n\n"
         "Guidelines:\n"
@@ -2699,7 +3431,7 @@ def get_groq_quiz_response(content, num_questions=5, difficulty="Medium", model=
     diff_desc = difficulty_map.get(difficulty, "balanced")
 
     system_msg = (
-        "You are LectureBuddies Quiz Generator. "
+        "You are Lecturebuddies Quiz Generator. "
         "Your task is to generate high-quality multiple-choice quizzes (MCQs) from educational material. "
         f"Generate exactly {num_questions} MCQs. Each question should have 4 options (A, B, C, D), one correct answer, "
         "and clearly mark the correct answer (e.g., Correct: A). "
@@ -2753,11 +3485,223 @@ def extract_content_from_file(uploaded_file):
     except Exception as e:
         return f"Error extracting content: {str(e)}"
 
+def save_to_local(username, category, data, custom_filename=None):
+    """Save content to local JSON for offline access."""
+    if not username:
+        return
+    
+    base_dir = "user_data"
+    user_dir = os.path.join(base_dir, username)
+    category_dir = os.path.join(user_dir, category)
+    os.makedirs(category_dir, exist_ok=True)
+    
+    if custom_filename:
+        filename = custom_filename
+        if not filename.endswith(".json"):
+            filename += ".json"
+    else:
+        # Create a unique filename based on timestamp
+        title_part = ""
+        if isinstance(data, dict):
+            if "title" in data:
+                title_part = f"_{data['title'][:20].replace(' ', '_')}"
+            elif "subject" in data:
+                title_part = f"_{data['subject'][:20].replace(' ', '_')}"
+        
+        # Clean filename
+        title_part = "".join([c for c in title_part if c.isalnum() or c in ('_', '-')])
+        
+        filename = f"{int(time.time())}{title_part}_{category}.json"
+        
+    file_path = os.path.join(category_dir, filename)
+    
+    # Add timestamp
+    if isinstance(data, dict) and 'saved_at' not in data:
+        data['saved_at'] = int(time.time())
+    
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving to local: {e}")
+
+def load_from_local(username, category):
+    """Load all content from local JSON for a category."""
+    if not username:
+        return []
+        
+    base_dir = "user_data"
+    category_dir = os.path.join(base_dir, username, category)
+    
+    if not os.path.exists(category_dir):
+        return []
+        
+    items = []
+    try:
+        for filename in os.listdir(category_dir):
+            if filename.endswith(".json"):
+                file_path = os.path.join(category_dir, filename)
+                with open(file_path, "r", encoding="utf-8") as f:
+                    try:
+                        data = json.load(f)
+                        if isinstance(data, dict) and 'saved_at' not in data:
+                            try:
+                                ts = int(filename.split('_')[0])
+                                data['saved_at'] = ts
+                            except:
+                                data['saved_at'] = 0
+                        items.append(data)
+                    except json.JSONDecodeError:
+                        continue
+    except Exception as e:
+        print(f"Error loading from local: {e}")
+        
+    return sorted(items, key=lambda x: x.get('saved_at', 0), reverse=True)
+
+# Recording helper functions
+def record_worker(audio_q: queue.Queue, stop_event: threading.Event):
+    """Recording thread worker"""
+    while not stop_event.is_set():
+        time.sleep(0.1)
+
+def sd_callback(indata, frames, time_info, status):
+    """Callback for sounddevice.InputStream"""
+    if status:
+        pass
+    mono = np.mean(indata, axis=1).astype(np.float32)
+    # guard: audio_queue may be None if recording not properly started
+    if st.session_state.get("audio_queue") is not None:
+        try:
+            st.session_state.audio_queue.put(mono)
+        except Exception:
+            pass
+
+def transcription_consumer(model: WhisperModel, chunk_seconds=5):
+    """Transcription consumer thread"""
+    sample_per_chunk = chunk_seconds * 16000
+    buffer = np.zeros((0,), dtype=np.float32)
+    chunk_index = 0
+
+    while st.session_state.recording or (st.session_state.audio_queue is not None and not st.session_state.audio_queue.empty()):
+        try:
+            while st.session_state.audio_queue is not None and not st.session_state.audio_queue.empty():
+                data = st.session_state.audio_queue.get_nowait()
+                buffer = np.concatenate((buffer, data))
+
+            if buffer.shape[0] >= sample_per_chunk:
+                to_process = buffer[:sample_per_chunk]
+                buffer = buffer[sample_per_chunk:]
+
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                    tmp_path = tmp.name
+                    sf.write(tmp_path, to_process, 16000, subtype="PCM_16")
+
+                segments, info = model.transcribe(tmp_path, beam_size=5)
+                partial_text = ""
+                for seg in segments:
+                    partial_text += seg.text
+
+                prev = st.session_state.transcript
+                st.session_state.transcript = (prev + " " + partial_text).strip()
+                st.session_state.partial_transcript = partial_text
+
+                saved_chunk = os.path.join("temp_recordings", f"chunk_{int(time.time())}_{chunk_index}.wav")
+                os.replace(tmp_path, saved_chunk)
+                st.session_state.chunks_saved.append(saved_chunk)
+                chunk_index += 1
+            else:
+                time.sleep(0.2)
+        except Exception:
+            time.sleep(0.1)
+    return
+
+# Realtime recording helper functions
+def realtime_record_worker(audio_q: queue.Queue, stop_event: threading.Event):
+    """Recording thread worker for realtime"""
+    while not stop_event.is_set():
+        time.sleep(0.1)
+
+def realtime_sd_callback(indata, frames, time_info, status):
+    """Callback for sounddevice.InputStream in realtime mode"""
+    if status:
+        pass
+    mono = np.mean(indata, axis=1).astype(np.float32)
+    if st.session_state.get("realtime_queue") is not None:
+        try:
+            st.session_state.realtime_queue.put(mono)
+        except Exception:
+            pass
+
+def realtime_transcription_consumer(model: WhisperModel, chunk_seconds=5):
+    """Transcription consumer thread for realtime"""
+    sample_per_chunk = chunk_seconds * 16000
+    buffer = np.zeros((0,), dtype=np.float32)
+    chunk_index = 0
+
+    while st.session_state.realtime_recording or (st.session_state.realtime_queue is not None and not st.session_state.realtime_queue.empty()):
+        try:
+            # Get audio data from queue
+            while st.session_state.realtime_queue is not None and not st.session_state.realtime_queue.empty():
+                data = st.session_state.realtime_queue.get_nowait()
+                buffer = np.concatenate((buffer, data))
+
+            # Process when we have enough data
+            if buffer.shape[0] >= sample_per_chunk:
+                to_process = buffer[:sample_per_chunk]
+                buffer = buffer[sample_per_chunk:]
+
+                # Save audio chunk to temporary file
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                    tmp_path = tmp.name
+                    sf.write(tmp_path, to_process, 16000, subtype="PCM_16")
+
+                # Transcribe the chunk
+                try:
+                    segments, info = model.transcribe(tmp_path, beam_size=5)
+                    partial_text = ""
+                    for seg in segments:
+                        partial_text += seg.text
+
+                    # Update session state
+                    if partial_text.strip():
+                        prev = st.session_state.realtime_transcript
+                        st.session_state.realtime_transcript = (prev + " " + partial_text).strip()
+                        st.session_state.realtime_partial = partial_text
+                        
+                        # Save chunk for debugging
+                        saved_chunk = os.path.join("temp_recordings", f"realtime_chunk_{int(time.time())}_{chunk_index}.wav")
+                        os.replace(tmp_path, saved_chunk)
+                        st.session_state.realtime_chunks.append(saved_chunk)
+                        chunk_index += 1
+                        
+                        print(f"Transcribed chunk {chunk_index}: {partial_text}")  # Debug print
+                    else:
+                        print(f"No text in chunk {chunk_index}")  # Debug print
+                        os.remove(tmp_path)
+                        
+                except Exception as e:
+                    print(f"Transcription error: {e}")  # Debug print
+                    try:
+                        os.remove(tmp_path)
+                    except:
+                        pass
+            else:
+                time.sleep(0.2)
+        except Exception as e:
+            print(f"Consumer error: {e}")  # Debug print
+            time.sleep(0.1)
+    return
+
 # ==========================
 # MAIN APPLICATION LOGIC
 # ==========================
 def main():
     """Main application entry point"""
+    # Simple Forgot Password routing
+    if st.session_state.get("show_simple_reset", False):
+        show_simple_password_reset()
+        return
+
     if not st.session_state.authenticated:
         show_login_page()
     else:
