@@ -2350,26 +2350,35 @@ def show_recording_feature():
                 recognizer.non_speaking_duration = 0.3
                 
                 try:
-                    # Check if any audio input devices are available before initializing sr.Microphone
-                    # This prevents a fatal C-level crash on Streamlit Cloud
-                    input_devices = [d for d in sd.query_devices() if d['max_input_channels'] > 0]
+                    # 1. Check if we're on Streamlit Cloud (where audio hardware is NEVER available)
+                    is_streamlit_cloud = os.path.exists('/home/adminuser') or os.environ.get('STREAMLIT_SERVER_PORT') == '8501'
+                    
+                    if is_streamlit_cloud:
+                        st.warning("⚠️ **Live Recording Disabled on Streamlit Cloud**")
+                        st.info("💡 **Reason:** Streamlit Cloud servers do not have access to your local microphone. To use the Live Recording feature, please clone this repository and run it on your own computer.")
+                        st.session_state.is_recording = False
+                        return
+
+                    # 2. Try to query devices safely
+                    try:
+                        input_devices = [d for d in sd.query_devices() if d['max_input_channels'] > 0]
+                    except Exception:
+                        input_devices = []
                     
                     if not input_devices:
                         st.error("🎤 **No Audio Input Devices Found**")
-                        st.info("💡 **Tip:** If you are running this on **Streamlit Cloud**, the server cannot access your local microphone. To use live recording, please run the application on your local machine.")
                         st.session_state.is_recording = False
-                        return # Exit early to prevent crash
+                        return 
 
                     mic = sr.Microphone(sample_rate=16000)
-                    
-                    # Visual Indicator
-                    st.toast("🎤 Listening... Speak now!", icon="👂")
                     
                     # Session ID for saving
                     session_start_time = int(time.time())
                     session_filename = f"recording_{session_start_time}_transcripts.json"
                     
                     with mic as source:
+                        # Visual Indicator
+                        st.toast("🎤 Listening... Speak now!", icon="👂")
                         recognizer.adjust_for_ambient_noise(source, duration=0.5)
                         
                         # We use a loop here. In Streamlit, this runs until the user stops/refreshes.
