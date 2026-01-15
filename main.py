@@ -966,37 +966,70 @@ st.markdown(
 
     <script>
     function toggleSidebar() {
-        // Find the Streamlit sidebar
-        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        // Method 1: Try to find and click the native Streamlit collapse button
         const collapsedControl = document.querySelector('[data-testid="collapsedControl"]');
         
+        if (collapsedControl) {
+            // Make it visible temporarily to click it
+            const originalDisplay = collapsedControl.style.display;
+            collapsedControl.style.display = 'block';
+            collapsedControl.click();
+            // Hide it again after clicking
+            setTimeout(() => {
+                collapsedControl.style.display = originalDisplay;
+            }, 100);
+            return;
+        }
+
+        // Method 2: Try to find the button inside the sidebar
+        const sidebarButtons = document.querySelectorAll('[data-testid="stSidebar"] button');
+        for (let btn of sidebarButtons) {
+            if (btn.getAttribute('kind') === 'header') {
+                btn.click();
+                return;
+            }
+        }
+
+        // Method 3: Direct manipulation as fallback
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
         if (sidebar) {
-            // Check if sidebar is currently visible
-            const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
+            const currentTransform = window.getComputedStyle(sidebar).transform;
+            const isHidden = currentTransform.includes('matrix') && currentTransform.includes('-');
             
-            // Toggle by clicking the collapsed control if it exists
-            if (collapsedControl) {
-                collapsedControl.click();
+            if (isHidden) {
+                sidebar.style.transform = 'translateX(0)';
+                sidebar.style.transition = 'transform 0.3s ease';
             } else {
-                // Fallback: toggle visibility directly
-                if (isExpanded) {
-                    sidebar.style.transform = 'translateX(-100%)';
-                    sidebar.setAttribute('aria-expanded', 'false');
-                } else {
-                    sidebar.style.transform = 'translateX(0)';
-                    sidebar.setAttribute('aria-expanded', 'true');
-                }
+                sidebar.style.transform = 'translateX(-100%)';
+                sidebar.style.transition = 'transform 0.3s ease';
             }
         }
     }
 
-    // Make sure button stays on top when page loads
-    document.addEventListener('DOMContentLoaded', function() {
+    // Show/hide toggle button based on sidebar presence
+    function updateToggleButtonVisibility() {
         const toggleBtn = document.querySelector('.custom-mobile-toggle');
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        
         if (toggleBtn && window.innerWidth <= 768) {
-            toggleBtn.style.display = 'flex';
+            // Only show button if sidebar exists (user is authenticated)
+            if (sidebar) {
+                toggleBtn.style.display = 'flex';
+            } else {
+                toggleBtn.style.display = 'none';
+            }
         }
-    });
+    }
+
+    // Check on page load
+    document.addEventListener('DOMContentLoaded', updateToggleButtonVisibility);
+    
+    // Check periodically in case sidebar appears/disappears
+    setInterval(updateToggleButtonVisibility, 500);
+
+    // Also monitor for Streamlit reloads
+    const observer = new MutationObserver(updateToggleButtonVisibility);
+    observer.observe(document.body, { childList: true, subtree: true });
     </script>
     
     """,
