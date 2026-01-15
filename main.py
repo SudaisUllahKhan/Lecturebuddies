@@ -169,6 +169,14 @@ st.markdown(
         display: none !important;
     }
 
+    /* Custom Layout Override */
+    .st-emotion-cache-zy6yx3 {
+        width: 100%;
+        padding: 2rem 1rem 10rem !important;
+        max-width: initial;
+        min-width: auto;
+    }
+
     /* Fix Input Placeholders & INPUT TEXT COLOR */
     .stTextInput input {
         color: #000000 !important;
