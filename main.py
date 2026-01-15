@@ -272,48 +272,23 @@ st.markdown(
         }
     }
 
-    /* Show toggle button on MOBILE with black color, no hover */
-    @media only screen and (max-width: 768px) {
-        /* Show the toggle button on mobile - ALWAYS VISIBLE */
+    /* Hide sidebar collapse button on DESKTOP only */
+    @media only screen and (min-width: 769px) {
         [data-testid="collapsedControl"] {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            background-color: transparent !important;
-            border: none !important;
-            transition: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            position: fixed !important;
-            top: 10px !important;
-            left: 10px !important;
-            z-index: 999999 !important;
+            display: none;
         }
 
-        [data-testid="collapsedControl"]:hover {
-            background-color: transparent !important;
-            transform: none !important;
-            box-shadow: none !important;
+        /* Make sidebar always visible and fixed on desktop */
+        [data-testid="stSidebar"][aria-expanded="true"],
+        [data-testid="stSidebar"][aria-expanded="false"] {
+            transform: none;
+            margin-left: 0;
         }
 
-        [data-testid="collapsedControl"] svg {
-            color: #ffffff !important;
-            fill: #ffffff !important;
-            background-color: #000000 !important;
-            padding: 8px !important;
-            border-radius: 6px !important;
-            width: 20px !important;
-            height: 20px !important;
-        }
-
-        /* Ensure button is visible when sidebar is collapsed */
-        [data-testid="stSidebar"][aria-expanded="false"] ~ div [data-testid="collapsedControl"],
-        button[kind="header"][data-testid="collapsedControl"] {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
+        /* Prevent sidebar from being collapsed on desktop */
+        section[data-testid="stSidebar"] {
+            position: relative;
+            min-width: 21rem;
         }
     }
 
@@ -936,7 +911,94 @@ st.markdown(
             margin-left: -5px !important;
         }
     }
+
+    /* ============================================== 
+       CUSTOM MOBILE SIDEBAR TOGGLE BUTTON 
+       ============================================== */
+    
+    /* Custom toggle button - only visible on mobile */
+    .custom-mobile-toggle {
+        display: none;
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 999999;
+        background: linear-gradient(135deg, #4e54c8, #8f94fb);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(78, 84, 200, 0.4);
+        transition: all 0.3s ease;
+    }
+
+    .custom-mobile-toggle:active {
+        transform: scale(0.95);
+    }
+
+    .custom-mobile-toggle svg {
+        width: 24px;
+        height: 24px;
+        fill: white;
+    }
+
+    /* Show custom toggle button only on mobile */
+    @media only screen and (max-width: 768px) {
+        .custom-mobile-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Hide default Streamlit toggle button on mobile */
+        [data-testid="collapsedControl"] {
+            display: none;
+        }
+    }
     </style>
+
+    <!-- Custom Mobile Toggle Button HTML -->
+    <button class="custom-mobile-toggle" onclick="toggleSidebar()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+        </svg>
+    </button>
+
+    <script>
+    function toggleSidebar() {
+        // Find the Streamlit sidebar
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        const collapsedControl = document.querySelector('[data-testid="collapsedControl"]');
+        
+        if (sidebar) {
+            // Check if sidebar is currently visible
+            const isExpanded = sidebar.getAttribute('aria-expanded') === 'true';
+            
+            // Toggle by clicking the collapsed control if it exists
+            if (collapsedControl) {
+                collapsedControl.click();
+            } else {
+                // Fallback: toggle visibility directly
+                if (isExpanded) {
+                    sidebar.style.transform = 'translateX(-100%)';
+                    sidebar.setAttribute('aria-expanded', 'false');
+                } else {
+                    sidebar.style.transform = 'translateX(0)';
+                    sidebar.setAttribute('aria-expanded', 'true');
+                }
+            }
+        }
+    }
+
+    // Make sure button stays on top when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.querySelector('.custom-mobile-toggle');
+        if (toggleBtn && window.innerWidth <= 768) {
+            toggleBtn.style.display = 'flex';
+        }
+    });
+    </script>
+    
     """,
     unsafe_allow_html=True
 )
