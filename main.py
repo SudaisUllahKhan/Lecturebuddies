@@ -163,10 +163,32 @@ st.markdown(
         background-color: #f5f7fa;
     }
 
-    /* Hide Streamlit default elements thoroughly */
-    #MainMenu, footer, header, [data-testid="stHeader"], [data-testid="stAppToolbar"] {
+    /* Hide Streamlit default elements thoroughly, but keep sidebar toggle on mobile */
+    #MainMenu, footer, [data-testid="stAppToolbar"] {
         visibility: hidden !important;
         display: none !important;
+    }
+
+    [data-testid="stHeader"] {
+        background-color: transparent !important;
+    }
+
+    /* Keep sidebar toggle visible on mobile */
+    @media (max-width: 768px) {
+        [data-testid="collapsedControl"] {
+            visibility: visible !important;
+            display: flex !important;
+            background: rgba(255, 255, 255, 0.8) !important;
+            border-radius: 50% !important;
+            margin: 10px !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+        }
+    }
+    
+    @media (min-width: 769px) {
+        [data-testid="stHeader"] {
+            display: none !important;
+        }
     }
 
     /* Custom Layout Override */
