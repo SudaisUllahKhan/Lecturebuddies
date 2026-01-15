@@ -12,3 +12,4 @@ pytesseract
 Pillow
 bcrypt
 PyAudio
+streamlit-mic-recorder
