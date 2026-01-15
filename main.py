@@ -274,6 +274,7 @@ st.markdown(
 
     /* Show toggle button on MOBILE with black color, no hover */
     @media only screen and (max-width: 768px) {
+        /* Show the toggle button on mobile */
         [data-testid="collapsedControl"] {
             display: flex !important;
             align-items: center !important;
@@ -283,6 +284,8 @@ st.markdown(
             transition: none !important;
             box-shadow: none !important;
             padding: 0 !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
 
         [data-testid="collapsedControl"]:hover {
