@@ -274,7 +274,7 @@ st.markdown(
 
     /* Show toggle button on MOBILE with black color, no hover */
     @media only screen and (max-width: 768px) {
-        /* Show the toggle button on mobile */
+        /* Show the toggle button on mobile - ALWAYS VISIBLE */
         [data-testid="collapsedControl"] {
             display: flex !important;
             align-items: center !important;
@@ -286,6 +286,10 @@ st.markdown(
             padding: 0 !important;
             visibility: visible !important;
             opacity: 1 !important;
+            position: fixed !important;
+            top: 10px !important;
+            left: 10px !important;
+            z-index: 999999 !important;
         }
 
         [data-testid="collapsedControl"]:hover {
@@ -302,6 +306,14 @@ st.markdown(
             border-radius: 6px !important;
             width: 20px !important;
             height: 20px !important;
+        }
+
+        /* Ensure button is visible when sidebar is collapsed */
+        [data-testid="stSidebar"][aria-expanded="false"] ~ div [data-testid="collapsedControl"],
+        button[kind="header"][data-testid="collapsedControl"] {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
     }
 
