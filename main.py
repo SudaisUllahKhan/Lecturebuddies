@@ -163,14 +163,10 @@ st.markdown(
         background-color: #f5f7fa;
     }
 
-    /* Hide Streamlit default elements */
-    #MainMenu {visibility: visible;}
-    footer {visibility: visible;}
-    header {visibility: visible;}
-    
-    [data-testid="stHeader"] {
-        background: rgba(0,0,0,0) !important; 
-        height: 0px !important; 
+    /* Hide Streamlit default elements thoroughly */
+    #MainMenu, footer, header, [data-testid="stHeader"], [data-testid="stAppToolbar"] {
+        visibility: hidden !important;
+        display: none !important;
     }
 
     /* Fix Input Placeholders & INPUT TEXT COLOR */
