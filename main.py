@@ -3453,13 +3453,13 @@ def get_groq_quiz_response(content, num_questions=5, difficulty="Medium", model=
         "You are Lecturebuddies Quiz Generator. "
         "Your task is to generate high-quality multiple-choice quizzes (MCQs) from educational material. "
         f"Generate exactly {num_questions} MCQs. Each question should follow this strict structure:\n"
-        "1. **Question Text**\n"
-        "A) Option 1\n"
-        "B) Option 2\n"
-        "C) Option 3\n"
-        "D) Option 4\n"
+        "1. **Question Text**\n\n"
+        "A) Option 1\n\n"
+        "B) Option 2\n\n"
+        "C) Option 3\n\n"
+        "D) Option 4\n\n"
         "Correct: [Letter]\n\n"
-        "CRITICAL: Put each option and the correct answer on its own NEW LINE. "
+        "CRITICAL: Use DOUBLE NEW LINES between each option and the question to ensure they appear on separate lines in Markdown rendering. "
         f"Make questions {diff_desc} in difficulty. "
         "Format the output neatly with numbered questions and bold question text. "
         "End with a summary of correct answers."
@@ -3477,7 +3477,15 @@ def get_groq_quiz_response(content, num_questions=5, difficulty="Medium", model=
             resp = requests.post(url, headers=headers, json=payload, timeout=30)
         if resp.status_code == 200:
             data = resp.json()
-            return data.get("choices", [{}])[0].get("message", {}).get("content", "No response received.")
+            raw_content = data.get("choices", [{}])[0].get("message", {}).get("content", "No response received.")
+            
+            # Post-processing to ENSURE newlines before options if the model misses them
+            import re
+            for opt in ["A\)", "B\)", "C\)", "D\)", "Correct:"]:
+                # Look for the option and ensure it has at least two newlines before it
+                raw_content = re.sub(rf"(?<!\n\n)\s*({opt})", r"\n\n\1", raw_content)
+            
+            return raw_content
         elif resp.status_code == 401:
             return "Invalid API key. Please check GROQ_API_KEY in your .env file."
         elif resp.status_code == 429:
