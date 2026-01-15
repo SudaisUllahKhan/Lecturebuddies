@@ -20,6 +20,7 @@ import pytesseract
 import re
 import speech_recognition as sr
 from faster_whisper import WhisperModel
+from streamlit_mic_recorder import mic_recorder
 from database import (
     create_user, 
     authenticate_user, 
@@ -2294,25 +2295,55 @@ def show_recording_feature():
         col1, col2 = st.columns([1, 2])
 
         with col1:
-            st.info("""💡 **Instructions:**
-1. Click 'Start Recording'.
-2. Speak into your mic.
-3. The text will appear instantly.
-4. Click 'Stop Recording' to end the session.""")
+            st.info("""💡 **Online Live Recording:**
+1. Click **'Start Recording'** below.
+2. **Allow microphone access** in your browser.
+3. Speak clearly into your microphone.
+4. Click **'Stop'** to instantly transcribe the audio.""")
             
-            # Start/Stop Button
-            if not st.session_state.is_recording:
-                start_recording = st.button("🔴 Start Live Recording", use_container_width=True)
-                if start_recording:
-                    st.session_state.is_recording = True
-                    st.rerun()
-            else:
-                stop_recording = st.button("⏹️ Stop Recording", use_container_width=True, type="primary")
-                if stop_recording:
-                    st.session_state.is_recording = False
-                    st.rerun()
+            # Browser-based microphone recorder (Works on Streamlit Cloud!)
+            audio = mic_recorder(
+                start_prompt="🔴 Start Recording",
+                stop_prompt="⏹️ Stop Recording",
+                just_once=False,
+                use_container_width=True,
+                key='browser_recorder'
+            )
             
-            start_recording = st.session_state.is_recording
+            if audio:
+                audio_bytes = audio['bytes']
+                if audio_bytes:
+                    with st.spinner("⚡ Transcribing your recording..."):
+                        # Use a temporary file to process the audio
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
+                            tmp_file.write(audio_bytes)
+                            tmp_path = tmp_file.name
+                        
+                        try:
+                            # Process with Faster-Whisper
+                            segments, _ = model.transcribe(tmp_path, beam_size=1, language="en")
+                            new_text = "".join([s.text for s in segments]).strip()
+                            
+                            if new_text:
+                                st.session_state.live_transcript += new_text + " "
+                                
+                                # Automatic Session Saving
+                                session_start_time = int(time.time())
+                                session_filename = f"recording_{session_start_time}_transcripts.json"
+                                local_data = {
+                                    "title": f"Live Recording {time.strftime('%H:%M')}",
+                                    "content": st.session_state.live_transcript,
+                                    "saved_at": session_start_time
+                                }
+                                save_to_local(st.session_state.current_user, "transcripts", local_data, custom_filename=session_filename)
+                                st.success("✅ Added to Transcript!")
+                        except Exception as e:
+                            st.error(f"Transcription error: {e}")
+                        finally:
+                            if os.path.exists(tmp_path):
+                                os.remove(tmp_path)
+            
+            st.markdown("---")
             
             # Download Button (Visible if we have text)
             if st.session_state.live_transcript:
@@ -2330,105 +2361,14 @@ def show_recording_feature():
 
         with col2:
             st.markdown("#### 📝 Live Output")
-            # Create a placeholder to update text in real-time
-            transcript_placeholder = st.empty()
-            
-            # Show existing transcript if not recording
-            if not start_recording:
-                transcript_placeholder.text_area("Transcript", value=st.session_state.live_transcript, height=400, disabled=True)
+            # Create a placeholder to show the transcript
+            st.text_area(
+                "Transcript", 
+                value=st.session_state.live_transcript, 
+                height=450, 
+                placeholder="Transcribed text will appear here after you stop recording..."
+            )
 
-            # ==========================
-            # THE NEW LOGIC INTEGRATION
-            # ==========================
-            if start_recording:
-                # 1. Setup Speech Recognition
-                recognizer = sr.Recognizer()
-                recognizer.energy_threshold = 1000  
-                recognizer.dynamic_energy_threshold = False
-                recognizer.pause_threshold = 0.3    
-                recognizer.phrase_threshold = 0.3    
-                recognizer.non_speaking_duration = 0.3
-                
-                try:
-                    # 1. Check if we're on Streamlit Cloud (where audio hardware is NEVER available)
-                    is_streamlit_cloud = os.path.exists('/home/adminuser') or os.environ.get('STREAMLIT_SERVER_PORT') == '8501'
-                    
-                    if is_streamlit_cloud:
-                        st.warning("⚠️ **Live Recording Disabled on Streamlit Cloud**")
-                        st.info("💡 **Reason:** Streamlit Cloud servers do not have access to your local microphone. To use the Live Recording feature, please clone this repository and run it on your own computer.")
-                        st.session_state.is_recording = False
-                        return
-
-                    # 2. Try to query devices safely
-                    try:
-                        input_devices = [d for d in sd.query_devices() if d['max_input_channels'] > 0]
-                    except Exception:
-                        input_devices = []
-                    
-                    if not input_devices:
-                        st.error("🎤 **No Audio Input Devices Found**")
-                        st.session_state.is_recording = False
-                        return 
-
-                    mic = sr.Microphone(sample_rate=16000)
-                    
-                    # Session ID for saving
-                    session_start_time = int(time.time())
-                    session_filename = f"recording_{session_start_time}_transcripts.json"
-                    
-                    with mic as source:
-                        # Visual Indicator
-                        st.toast("🎤 Listening... Speak now!", icon="👂")
-                        recognizer.adjust_for_ambient_noise(source, duration=0.5)
-                        
-                        # We use a loop here. In Streamlit, this runs until the user stops/refreshes.
-                        try:
-                            while st.session_state.is_recording:
-                                # 2. Listen
-                                # We use a placeholder info to show "Listening"
-                                status_ph = st.empty()
-                                status_ph.caption("👂 Listening...")
-                                
-                                audio_data = recognizer.listen(source, timeout=None, phrase_time_limit=5) # 5s chunks for fluidity
-                                
-                                status_ph.caption("⚡ Processing...")
-                                
-                                # 3. Process Audio for Whisper
-                                raw_data = audio_data.get_raw_data()
-                                audio_np = np.frombuffer(raw_data, dtype=np.int16).astype(np.float32) / 32768.0
-
-                                # 4. Transcribe (Fastest Settings)
-                                segments, _ = model.transcribe(audio_np, beam_size=1, language="en", vad_filter=False)
-                                new_text = "".join([s.text for s in segments]).strip()
-
-                                if new_text:
-                                    # Append to session state
-                                    st.session_state.live_transcript += new_text + " "
-                                    
-                                    # Update the UI immediately
-                                    transcript_placeholder.text_area(
-                                        "Transcript (Recording...)", 
-                                        value=st.session_state.live_transcript, 
-                                        height=400
-                                    )
-                                    
-                                    local_data = {
-                                        "title": f"Live Recording {time.strftime('%H:%M', time.localtime(session_start_time))}",
-                                        "content": st.session_state.live_transcript,
-                                        "saved_at": int(time.time())
-                                    }
-                                    save_to_local(st.session_state.current_user, "transcripts", local_data, custom_filename=session_filename)
-                                    
-                                status_ph.empty()
-                                
-                        except Exception as e:
-                            st.error(f"Recording error: {e}")
-                            st.session_state.is_recording = False
-                            
-                except (OSError, AttributeError, Exception) as e:
-                    st.error(f"🎤 Microphone Access Error: {e}")
-                    st.session_state.is_recording = False
-                    st.info("💡 **Tip:** If you are running this on a hosted platform like Streamlit Cloud, the server cannot access your local microphone. To use live recording, please run the application on your local machine.")
 
 
 
