@@ -252,6 +252,56 @@ st.markdown(
         border-right: 1px solid #e0e7ff;
     }
 
+    /* Hide sidebar collapse button on DESKTOP only */
+    @media only screen and (min-width: 769px) {
+        [data-testid="collapsedControl"] {
+            display: none !important;
+        }
+
+        /* Make sidebar always visible and fixed on desktop */
+        [data-testid="stSidebar"][aria-expanded="true"],
+        [data-testid="stSidebar"][aria-expanded="false"] {
+            transform: none !important;
+            margin-left: 0 !important;
+        }
+
+        /* Prevent sidebar from being collapsed on desktop */
+        section[data-testid="stSidebar"] {
+            position: relative !important;
+            min-width: 21rem !important;
+        }
+    }
+
+    /* Show toggle button on MOBILE with black color, no hover */
+    @media only screen and (max-width: 768px) {
+        [data-testid="collapsedControl"] {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background-color: transparent !important;
+            border: none !important;
+            transition: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+
+        [data-testid="collapsedControl"]:hover {
+            background-color: transparent !important;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        [data-testid="collapsedControl"] svg {
+            color: #ffffff !important;
+            fill: #ffffff !important;
+            background-color: #000000 !important;
+            padding: 8px !important;
+            border-radius: 6px !important;
+            width: 20px !important;
+            height: 20px !important;
+        }
+    }
+
     .sidebar-title {
         font-size: 11px;
         font-weight: 700;
@@ -606,7 +656,7 @@ st.markdown(
     /* Extra Small Devices (Portrait Phones) */
     @media only screen and (max-width: 600px) {
         .st-emotion-cache-10p9htt.e6f82ta4 {
-            background-color: #4e54c8 !important;
+            background-color: #ffffff;
         }
     }
     
@@ -2276,12 +2326,12 @@ def show_recording_feature():
     # ==========================
     # TAB 2: Realtime Transcript (UPDATED CODE)
     # ==========================
-    with tab2:
-        st.markdown("### ⚡ Fast Real-time Transcription")
+    # with tab2:
+    #     st.markdown("### ⚡ Fast Real-time Transcription")
         
-        # Initialize session state for transcript storage
-        if "live_transcript" not in st.session_state:
-            st.session_state.live_transcript = ""
+    #     # Initialize session state for transcript storage
+    #     if "live_transcript" not in st.session_state:
+    #         st.session_state.live_transcript = ""
 
     # ==========================
     # TAB 2: Realtime Transcript (UPDATED CODE)
@@ -2298,7 +2348,11 @@ def show_recording_feature():
         col1, col2 = st.columns([1, 2])
 
         with col1:
-            st.info("💡 **Instructions:**\\n1. Click 'Start Recording'.\\n2. Speak into your mic.\\n3. The text will appear instantly.\\n4. Click 'Stop Recording' to end the session.")
+            st.info("""💡 **Instructions:**
+1. Click 'Start Recording'.
+2. Speak into your mic.
+3. The text will appear instantly.
+4. Click 'Stop Recording' to end the session.""")
             
             # Start/Stop Button
             if not st.session_state.is_recording:
@@ -2451,24 +2505,42 @@ def show_flashcards_feature():
         )
     
     with col2:
-       
+        st.markdown("### 📝 Content Input")
+        
+        content_input = st.text_area(
+            "Enter or paste content for flashcards",
+            placeholder="Paste your study material here or upload a file...",
+            height=200,
+            help="Provide content to generate flashcards from"
+        )
         
         if st.button("🎯 Generate Flash Cards", key="generate_cards", use_container_width=True):
             if content_input or uploaded_file:
                 with st.spinner("Generating flash cards..."):
-                    # Generate flash cards using AI
-                    flashcards = generate_flashcards(content_input or "Sample content", num_cards, difficulty, subject)
-                    st.session_state.flashcards = flashcards
+                    # Extract content from file if uploaded, otherwise use text input
+                    if uploaded_file:
+                        content = extract_content_from_file(uploaded_file)
+                        if content and "Error" not in content:
+                            flashcards = generate_flashcards(content, num_cards, difficulty, subject)
+                        else:
+                            st.error("Failed to extract content from file. Please try a different file.")
+                            flashcards = None
+                    else:
+                        flashcards = generate_flashcards(content_input, num_cards, difficulty, subject)
                     
-                    # Save to local for offline access
-                    local_data = {
-                        "subject": subject or "General Flashcards",
-                        "difficulty": difficulty,
-                        "cards": flashcards
-                    }
-                    save_to_local(st.session_state.current_user, "flashcards", local_data)
-                    
-                    st.success(f"✅ Generated {len(flashcards)} flash cards!")
+                    # Only save if flashcards were successfully generated
+                    if flashcards:
+                        st.session_state.flashcards = flashcards
+                        
+                        # Save to local for offline access
+                        local_data = {
+                            "subject": subject or "General Flashcards",
+                            "difficulty": difficulty,
+                            "cards": flashcards
+                        }
+                        save_to_local(st.session_state.current_user, "flashcards", local_data)
+                        
+                        st.success(f"✅ Generated {len(flashcards)} flash cards!")
             else:
                 st.warning("Please provide content to generate flash cards")
         
