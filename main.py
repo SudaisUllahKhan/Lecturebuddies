@@ -357,7 +357,7 @@ st.markdown(
     /* Welcome Styles */
     .welcome-container {
         text-align: center;
-        padding: clamp(15px, 3vw, 30px);
+        padding: clamp(10px, 2vw, 22px);
         background: linear-gradient(90deg, #8f94fb, #764ba2);
         border-radius: 15px;
         border: 1px solid #d1d9ff;
@@ -744,7 +744,7 @@ st.markdown(
         }
         
         .welcome-container {
-            padding: clamp(12px, 2.5vw, 25px);
+            padding: clamp(8px, 1.8vw, 18px);
         }
     }
 
@@ -1821,7 +1821,7 @@ def show_chatbot_feature():
         }
         .welcome-container {
             text-align: center;
-            padding: 20px;
+            padding: 15px;
             background: linear-gradient(90deg, #8f94fb, #764ba2 );
             border-radius: 15px;
             border: 1px solid #d1d9ff;
