@@ -2350,6 +2350,16 @@ def show_recording_feature():
                 recognizer.non_speaking_duration = 0.3
                 
                 try:
+                    # Check if any audio input devices are available before initializing sr.Microphone
+                    # This prevents a fatal C-level crash on Streamlit Cloud
+                    input_devices = [d for d in sd.query_devices() if d['max_input_channels'] > 0]
+                    
+                    if not input_devices:
+                        st.error("🎤 **No Audio Input Devices Found**")
+                        st.info("💡 **Tip:** If you are running this on **Streamlit Cloud**, the server cannot access your local microphone. To use live recording, please run the application on your local machine.")
+                        st.session_state.is_recording = False
+                        return # Exit early to prevent crash
+
                     mic = sr.Microphone(sample_rate=16000)
                     
                     # Visual Indicator
