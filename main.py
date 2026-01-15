@@ -658,6 +658,10 @@ st.markdown(
         .st-emotion-cache-10p9htt.e6f82ta4 {
             background-color: #ffffff;
         }
+
+        .st-emotion-cache-5r6ut5 {
+            background: linear-gradient(135deg, #4e54c8, #8f94fb) !important;
+        }
     }
     
     @media only screen and (max-width: 480px) {
