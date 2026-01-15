@@ -2202,7 +2202,7 @@ def show_quiz_feature():
                     unsafe_allow_html=True
                 )
 
-                st.markdown("### " + st.session_state.quiz_output)
+                st.markdown(st.session_state.quiz_output)
 
                 st.download_button(
                     label="Download Quiz as TXT",
@@ -3452,10 +3452,16 @@ def get_groq_quiz_response(content, num_questions=5, difficulty="Medium", model=
     system_msg = (
         "You are Lecturebuddies Quiz Generator. "
         "Your task is to generate high-quality multiple-choice quizzes (MCQs) from educational material. "
-        f"Generate exactly {num_questions} MCQs. Each question should have 4 options (A, B, C, D), one correct answer, "
-        "and clearly mark the correct answer (e.g., Correct: A). "
+        f"Generate exactly {num_questions} MCQs. Each question should follow this strict structure:\n"
+        "1. **Question Text**\n"
+        "A) Option 1\n"
+        "B) Option 2\n"
+        "C) Option 3\n"
+        "D) Option 4\n"
+        "Correct: [Letter]\n\n"
+        "CRITICAL: Put each option and the correct answer on its own NEW LINE. "
         f"Make questions {diff_desc} in difficulty. "
-        "Format the output neatly with numbered questions, bold question text, and labeled options. "
+        "Format the output neatly with numbered questions and bold question text. "
         "End with a summary of correct answers."
     )
 
