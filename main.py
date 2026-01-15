@@ -2349,66 +2349,67 @@ def show_recording_feature():
                 recognizer.phrase_threshold = 0.3    
                 recognizer.non_speaking_duration = 0.3
                 
-                mic = sr.Microphone(sample_rate=16000)
-                
-                # Visual Indicator
-                st.toast("🎤 Listening... Speak now!", icon="👂")
-                
-                # Session ID for saving
-                session_start_time = int(time.time())
-                session_filename = f"recording_{session_start_time}_transcripts.json"
-                
-                with mic as source:
-                    recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                try:
+                    mic = sr.Microphone(sample_rate=16000)
                     
-                    # We use a loop here. In Streamlit, this runs until the user stops/refreshes.
-                    try:
-                        while st.session_state.is_recording:
-                            # 2. Listen
-                            # We use a placeholder info to show "Listening"
-                            status_ph = st.empty()
-                            status_ph.caption("👂 Listening...")
-                            
-                            audio_data = recognizer.listen(source, timeout=None, phrase_time_limit=5) # 5s chunks for fluidity
-                            
-                            status_ph.caption("⚡ Processing...")
-                            
-                            # 3. Process Audio for Whisper
-                            raw_data = audio_data.get_raw_data()
-                            audio_np = np.frombuffer(raw_data, dtype=np.int16).astype(np.float32) / 32768.0
+                    # Visual Indicator
+                    st.toast("🎤 Listening... Speak now!", icon="👂")
+                    
+                    # Session ID for saving
+                    session_start_time = int(time.time())
+                    session_filename = f"recording_{session_start_time}_transcripts.json"
+                    
+                    with mic as source:
+                        recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                        
+                        # We use a loop here. In Streamlit, this runs until the user stops/refreshes.
+                        try:
+                            while st.session_state.is_recording:
+                                # 2. Listen
+                                # We use a placeholder info to show "Listening"
+                                status_ph = st.empty()
+                                status_ph.caption("👂 Listening...")
+                                
+                                audio_data = recognizer.listen(source, timeout=None, phrase_time_limit=5) # 5s chunks for fluidity
+                                
+                                status_ph.caption("⚡ Processing...")
+                                
+                                # 3. Process Audio for Whisper
+                                raw_data = audio_data.get_raw_data()
+                                audio_np = np.frombuffer(raw_data, dtype=np.int16).astype(np.float32) / 32768.0
 
-                            # 4. Transcribe (Fastest Settings)
-                            segments, _ = model.transcribe(audio_np, beam_size=1, language="en", vad_filter=False)
-                            new_text = "".join([s.text for s in segments]).strip()
+                                # 4. Transcribe (Fastest Settings)
+                                segments, _ = model.transcribe(audio_np, beam_size=1, language="en", vad_filter=False)
+                                new_text = "".join([s.text for s in segments]).strip()
 
-                            if new_text:
-                                # Append to session state
-                                st.session_state.live_transcript += new_text + " "
+                                if new_text:
+                                    # Append to session state
+                                    st.session_state.live_transcript += new_text + " "
+                                    
+                                    # Update the UI immediately
+                                    transcript_placeholder.text_area(
+                                        "Transcript (Recording...)", 
+                                        value=st.session_state.live_transcript, 
+                                        height=400
+                                    )
+                                    
+                                    local_data = {
+                                        "title": f"Live Recording {time.strftime('%H:%M', time.localtime(session_start_time))}",
+                                        "content": st.session_state.live_transcript,
+                                        "saved_at": int(time.time())
+                                    }
+                                    save_to_local(st.session_state.current_user, "transcripts", local_data, custom_filename=session_filename)
+                                    
+                                status_ph.empty()
                                 
-                                # Update the UI immediately
-                                transcript_placeholder.text_area(
-                                    "Transcript (Recording...)", 
-                                    value=st.session_state.live_transcript, 
-                                    height=400
-                                )
-                                
-                                # Save incrementally to local (or save final on stop, but incremental ensures data safety)
-                                # For strict "generated online" rule, we assume this is "generating" phase.
-                                # To avoid too many writes, only save every 10th update or just keep in memory until stop?
-                                # Better: Save here to ensure persistence if app crashes, but maybe overwrite same file.
-                                # Actually, user mostly wants "final" transcript.
-                                # Let's save the current full transcript.
-                                local_data = {
-                                    "title": f"Live Recording {time.strftime('%H:%M', time.localtime(session_start_time))}",
-                                    "content": st.session_state.live_transcript,
-                                    "saved_at": int(time.time())
-                                }
-                                save_to_local(st.session_state.current_user, "transcripts", local_data, custom_filename=session_filename)
-                                
-                            status_ph.empty()
+                        except Exception as e:
+                            st.error(f"Recording error: {e}")
+                            st.session_state.is_recording = False
                             
-                    except Exception as e:
-                        st.error(f"Recording stopped or error: {e}")
+                except (OSError, AttributeError, Exception) as e:
+                    st.error(f"🎤 Microphone Access Error: {e}")
+                    st.session_state.is_recording = False
+                    st.info("💡 **Tip:** If you are running this on a hosted platform like Streamlit Cloud, the server cannot access your local microphone. To use live recording, please run the application on your local machine.")
 
 
 
