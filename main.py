@@ -2984,44 +2984,71 @@ def show_search_feature():
             display_search_results(st.session_state.search_results)
 
 def perform_search(query, categories, date_range, content_type, tags_filter):
-    """Perform categorized search"""
-    # This is a simplified search implementation
-    # In a real application, you would search through actual data
+    """Perform SEARCH on real saved data from local storage."""
     results = []
     
-    # Simulate search results
-    sample_results = [
-        {
-            "title": "Chemistry Notes - Organic Compounds",
-            "content": "Organic compounds are carbon-based molecules...",
-            "category": "Notes",
-            "date": "2024-01-15",
-            "tags": ["chemistry", "organic", "important"],
-            "relevance": 0.95
-        },
-        {
-            "title": "Math Quiz - Calculus",
-            "content": "Quiz questions about derivatives and integrals...",
-            "category": "Quizzes", 
-            "date": "2024-01-14",
-            "tags": ["math", "calculus", "quiz"],
-            "relevance": 0.87
-        },
-        {
-            "title": "Biology Lecture Recording",
-            "content": "Transcription of biology lecture about cell division...",
-            "category": "Recordings",
-            "date": "2024-01-13",
-            "tags": ["biology", "lecture", "cell"],
-            "relevance": 0.82
-        }
-    ]
+    if not st.session_state.get('authenticated'):
+        return []
+        
+    username = st.session_state.current_user
     
-    # Filter results based on search criteria
-    for result in sample_results:
-        if result['category'] in categories:
-            if query.lower() in result['title'].lower() or query.lower() in result['content'].lower():
-                results.append(result)
+    # Map UI category labels to folder names
+    category_map = {
+        "Quizzes": "quizzes",
+        "Notes": "notes",
+        "Recordings": "transcripts",
+        "Flash Cards": "flashcards",
+        "Chat History": "chat" # Placeholder even if empty
+    }
+    
+    query_lower = query.lower()
+    
+    for ui_cat in categories:
+        folder_name = category_map.get(ui_cat)
+        if not folder_name:
+            continue
+            
+        # Load real items from local storage
+        items = load_from_local(username, folder_name)
+        
+        for item in items:
+            # Extract basic info
+            title = ""
+            content = ""
+            tags = item.get('tags', [])
+            saved_at = item.get('saved_at', 0)
+            date_str = time.strftime('%Y-%m-%d', time.localtime(saved_at)) if saved_at else "Unknown"
+            
+            if folder_name == "quizzes":
+                title = item.get('title') or item.get('subject') or "Untitled Quiz"
+                content = item.get('content', '')
+            elif folder_name == "notes":
+                title = item.get('title', 'Untitled Note')
+                content = item.get('content', '')
+            elif folder_name == "flashcards":
+                title = item.get('subject', 'Untitled Deck')
+                # For flashcards, search through questions and answers
+                cards = item.get('cards', [])
+                content = " ".join([f"{c.get('front')} {c.get('back')}" for c in cards])
+            elif folder_name == "transcripts":
+                title = item.get('title', 'Untitled Recording')
+                content = item.get('content', '')
+                
+            # Perform search check
+            if query_lower in title.lower() or query_lower in content.lower():
+                # Simple relevance calculation
+                relevance = 1.0
+                if query_lower in title.lower():
+                    relevance += 0.5 # Title matches are more relevant
+                
+                results.append({
+                    "title": title,
+                    "content": content,
+                    "category": ui_cat,
+                    "date": date_str,
+                    "tags": tags if tags else [ui_cat.lower()],
+                    "relevance": relevance
+                })
     
     return sorted(results, key=lambda x: x['relevance'], reverse=True)
 
