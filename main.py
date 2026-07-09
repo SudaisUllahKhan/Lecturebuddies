@@ -149,794 +149,846 @@ def get_logo_svg(size_px=80, font_size_px=42):
 st.markdown(
     """
     <style>
-    /* Removed Poppins @import */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-    /* Prevent scrolling on login page only */
-    .login-page body, .login-page html {
-        overflow-y: hidden !important;
-        height: 100vh !important;
+    /* ==============================================
+       LECTUREBUDDIES — CLEAN SAAS DESIGN SYSTEM
+       White surfaces, thin borders, crisp sans-serif,
+       purple (#4e54c8) used only as an accent.
+       ============================================== */
+    :root {
+        --ink: #16182d;
+        --text: #3f4257;
+        --muted: #6f7287;
+        --faint: #9becac;
+        --border: #e7e8f0;
+        --border-hover: #d5d7e6;
+        --bg: #f7f8fa;
+        --surface: #ffffff;
+        --primary: #4e54c8;
+        --primary-hover: #4046b8;
+        --primary-soft: #eef0fd;
+        --primary-border: #d9dcf7;
+        --radius: 10px;
+        --radius-lg: 12px;
+        --shadow-xs: 0 1px 2px rgba(22, 24, 45, 0.05);
+        --shadow-sm: 0 1px 3px rgba(22, 24, 45, 0.06), 0 4px 12px rgba(22, 24, 45, 0.04);
+        --shadow-md: 0 4px 16px rgba(22, 24, 45, 0.08);
+        --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
-    /* Main App Styling */
+    /* Base canvas — flat, quiet */
     .stApp {
-        font-family: 'Georgia', serif;
-        background-color: #f5f7fa;
+        background: var(--bg);
+        color: var(--text);
     }
 
-    /* Hide Streamlit default elements thoroughly, but keep sidebar toggle on mobile */
-    #MainMenu, footer, [data-testid="stAppToolbar"] {
+    /* Professional sans-serif everywhere (overrides legacy inline Georgia)… */
+    .stApp * { font-family: var(--font) !important; }
+    /* …except the wordmark, which stays serif for brand */
+    .lb-logo-text { font-family: Georgia, 'Times New Roman', serif !important; }
+
+    /* Hide Streamlit chrome, keep sidebar toggle on mobile */
+    #MainMenu, footer, [data-testid="stAppToolbar"], .stDeployButton {
         visibility: hidden !important;
         display: none !important;
     }
-
-    [data-testid="stHeader"] {
-        background-color: transparent !important;
-    }
-
-    /* Keep sidebar toggle visible on mobile */
+    [data-testid="stHeader"] { background-color: transparent !important; }
     @media (max-width: 768px) {
         [data-testid="collapsedControl"] {
             visibility: visible !important;
             display: flex !important;
-            background: rgba(255, 255, 255, 0.8) !important;
-            border-radius: 50% !important;
+            background: #ffffff !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 8px !important;
             margin: 10px !important;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+            box-shadow: var(--shadow-xs) !important;
         }
     }
-    
     @media (min-width: 769px) {
-        [data-testid="stHeader"] {
-            display: none !important;
-        }
-    }
-
-    /* Custom Layout Override */
-    .st-emotion-cache-zy6yx3 {
-        width: 100%;
-        padding: 2rem 1rem 10rem !important;
-        max-width: initial;
-        min-width: auto;
-    }
-
-    /* Fix Input Placeholders & INPUT TEXT COLOR */
-    .stTextInput input {
-        color: #000000 !important;
-    }
-
-    ::placeholder {
-        color: #6b7280 !important;
-        opacity: 1 !important; /* Firefox */
-    }
-    
-    .stTextInput input::placeholder {
-        color: #6b7280 !important;
-    }
-
-    /* Main Title */
-    .main-title {
-        text-align: center;
-        font-size: clamp(28px, 5vw, 42px);
-        font-weight: 800;
-        background: linear-gradient(90deg, #4e54c8, #8f94fb, #4e54c8);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 8px;
-        font-family: 'Georgia', serif;
-    }
-
-    /* Tagline */
-    .tagline {
-        text-align: center;
-        font-size: clamp(14px, 2vw, 16px);
-        color: #666;
-        margin-bottom: 15px;
-        font-family: 'Georgia', serif;
-    }
-
-    /* Gradient Line */
-    hr.gradient {
-        border: none;
-        height: 3px;
-        background: linear-gradient(90deg, #4e54c8, #8f94fb, #4e54c8);
-        border-radius: 50px;
-        margin: 15px auto;
-        max-width: 400px;
-    }
-
-    /* App Brand Title (Login Page) */
-    .app-brand-title {
-        font-size: clamp(28px, 5vw, 42px);
-        font-weight: 800;
-        color: #4e54c8;
-        text-shadow: 2px 2px 4px rgba(78, 84, 200, 0.2);
-        font-family: 'Georgia', serif;
-        margin-bottom: 8px;
-        text-align: center;
-    }
-
-    /* ==============================================
-       DASHBOARD CONTENT STYLING FIXES
-       ============================================== */
-
-    .main .block-container {
-        padding: clamp(1rem, 3vw, 3rem) !important;
-        max-width: 1400px;
-        margin: 0 auto;
-    }
-
-    [data-testid="stSidebar"] > div:first-child {
-        padding-top: 10px !important; 
-        padding-bottom: 10px !important;
-    }
-
-    /* ==============================================
-       SIDEBAR
-       ============================================== */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #ffffff 0%, #f8f9ff 100%);
-        border-right: 1px solid #e0e7ff;
-    }
-
-    /* Hide sidebar collapse button on DESKTOP only */
-    @media only screen and (min-width: 769px) {
-        [data-testid="collapsedControl"] {
-            display: none !important;
-        }
-
-        /* Make sidebar always visible and fixed on desktop */
+        [data-testid="stHeader"] { display: none !important; }
+        [data-testid="collapsedControl"] { display: none !important; }
         [data-testid="stSidebar"][aria-expanded="true"],
         [data-testid="stSidebar"][aria-expanded="false"] {
             transform: none !important;
             margin-left: 0 !important;
         }
-
-        /* Prevent sidebar from being collapsed on desktop */
         section[data-testid="stSidebar"] {
             position: relative !important;
-            min-width: 21rem !important;
+            min-width: 17.5rem !important;
+            max-width: 17.5rem !important;
         }
     }
 
-    /* Hide sidebar collapse button on DESKTOP only */
-    @media only screen and (min-width: 769px) {
-        [data-testid="collapsedControl"] {
-            display: none;
-        }
-
-        /* Make sidebar always visible and fixed on desktop */
-        [data-testid="stSidebar"][aria-expanded="true"],
-        [data-testid="stSidebar"][aria-expanded="false"] {
-            transform: none;
-            margin-left: 0;
-        }
-
-        /* Prevent sidebar from being collapsed on desktop */
-        section[data-testid="stSidebar"] {
-            position: relative;
-            min-width: 21rem;
-        }
+    .main .block-container {
+        padding: clamp(1.2rem, 3vw, 2.6rem) !important;
+        max-width: 1200px;
+        margin: 0 auto;
     }
 
+    /* ==============================================
+       TYPOGRAPHY
+       ============================================== */
+    .main h1, .main h2, .main h3, .main h4 {
+        color: var(--ink);
+        letter-spacing: -0.02em;
+        font-weight: 700;
+    }
+    .main p, .main li { color: var(--text); }
+
+    .main-title {
+        text-align: center;
+        font-size: clamp(26px, 4.5vw, 36px);
+        font-weight: 800;
+        color: var(--ink);
+        letter-spacing: -0.03em;
+        margin-bottom: 6px;
+    }
+    .tagline {
+        text-align: center;
+        font-size: clamp(13px, 2vw, 15px);
+        color: var(--muted);
+        margin-bottom: 15px;
+    }
+    .app-brand-title {
+        font-size: clamp(26px, 4.5vw, 36px);
+        font-weight: 800;
+        color: var(--ink);
+        letter-spacing: -0.03em;
+        margin-bottom: 8px;
+        text-align: center;
+    }
+    hr.gradient {
+        border: none;
+        height: 1px;
+        background: var(--border);
+        margin: 4px auto 20px auto;
+        max-width: 100%;
+        border-radius: 0;
+    }
+
+    /* ==============================================
+       PAGE HEADER (welcome-container, reused everywhere)
+       — clean left-aligned header card, no gradients
+       ============================================== */
+    .welcome-container {
+        text-align: left;
+        padding: clamp(20px, 3vw, 28px) clamp(20px, 3vw, 32px);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        margin: 4px 0 24px 0;
+        box-shadow: var(--shadow-xs);
+    }
+    .welcome-eyebrow {
+        display: inline-block;
+        color: var(--primary) !important;
+        background: var(--primary-soft);
+        border: 1px solid var(--primary-border);
+        border-radius: 6px;
+        padding: 3px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 12px;
+    }
+    .welcome-title {
+        color: var(--ink) !important;
+        font-size: clamp(20px, 3vw, 26px);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0 0 6px 0;
+    }
+    .welcome-text {
+        color: var(--muted) !important;
+        font-size: clamp(13.5px, 1.8vw, 15px);
+        margin: 0;
+        line-height: 1.6;
+        max-width: 760px;
+    }
+
+    /* ==============================================
+       SIDEBAR — light, quiet, professional
+       ============================================== */
+    [data-testid="stSidebar"] {
+        background: #ffffff;
+        border-right: 1px solid var(--border);
+    }
+    [data-testid="stSidebar"] > div:first-child {
+        padding-top: 14px !important;
+        padding-bottom: 14px !important;
+    }
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] li,
+    [data-testid="stSidebar"] label, [data-testid="stSidebar"] label p {
+        color: var(--text) !important;
+    }
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3, [data-testid="stSidebar"] h4 {
+        color: var(--ink) !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.01em;
+    }
+    [data-testid="stSidebar"] hr {
+        border: none !important;
+        height: 1px !important;
+        background: var(--border) !important;
+        margin: 12px 0 !important;
+    }
     .sidebar-title {
         font-size: 11px;
-        font-weight: 700;
+        font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 1px;
-        color: #9ca3af;
-        padding: 0 20px;
-        margin-bottom: 12px;
-        font-family: 'Georgia', serif !important;
+        color: var(--muted);
+        padding: 0 12px;
+        margin-bottom: 8px;
     }
 
-    /* Sidebar Button Styling */
+    /* Sidebar nav buttons — quiet rows, subtle hover */
     [data-testid="stSidebar"] button {
         width: 100% !important;
         text-align: left !important;
-        padding: 8px 15px !important;
+        justify-content: flex-start !important;
+        padding: 9px 12px !important;
         margin: 1px 0 !important;
         border-radius: 8px !important;
         background: transparent !important;
         border: none !important;
         color: #4b5563 !important;
-        font-weight: 600 !important;
-        font-size: 13px !important;
-        transition: all 0.3s ease !important;
+        font-weight: 500 !important;
+        font-size: 13.5px !important;
+        transition: background 0.15s ease, color 0.15s ease !important;
         display: flex !important;
         align-items: center !important;
         gap: 8px !important;
         white-space: nowrap !important;
-        min-height: 32px !important;
-        font-family: 'Georgia', serif !important;
+        min-height: 36px !important;
+        box-shadow: none !important;
     }
-
+    [data-testid="stSidebar"] button p { color: inherit !important; font-size: 13.5px !important; }
     [data-testid="stSidebar"] button:hover {
-        background: linear-gradient(135deg, #4e54c8, #8f94fb) !important;
-        color: white !important;
-        transform: translateX(5px);
+        background: #f2f3f9 !important;
+        color: var(--ink) !important;
+        transform: none;
+        box-shadow: none !important;
     }
+    [data-testid="stSidebar"] button:active { background: #eaebf4 !important; }
 
-    /* Logout Button in Sidebar - Special Styling */
-    [data-testid="stSidebar"] button[key="logout_btn"],
-    [data-testid="stSidebar"] .stButton > button[key="logout_btn"],
-    [data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div:last-child button,
-    [data-testid="stSidebar"] button[aria-label*="Logout"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: white !important;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+    /* Sidebar expander — invisible frame, reads as a plain menu */
+    [data-testid="stSidebar"] [data-testid="stExpander"] {
+        border: none !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
     }
-
-    [data-testid="stSidebar"] button[key="logout_btn"]:hover,
-    [data-testid="stSidebar"] .stButton > button[key="logout_btn"]:hover,
-    [data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div:last-child button:hover,
-    [data-testid="stSidebar"] button[aria-label*="Logout"]:hover {
-        background: linear-gradient(90deg, #8f94fb, #764ba2) !important;
-        transform: translateX(5px) translateY(-2px) !important;
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+    [data-testid="stSidebar"] [data-testid="stExpander"] details {
+        border: none !important;
+        background: transparent !important;
     }
-
-    /* Welcome Styles */
-    .welcome-container {
-        text-align: center;
-        padding: clamp(10px, 2vw, 22px);
-        background: linear-gradient(90deg, #8f94fb, #764ba2);
-        border-radius: 15px;
-        border: 1px solid #d1d9ff;
-        margin: 10px 0;
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary {
+        font-weight: 600 !important;
+        font-size: 12px !important;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--muted) !important;
+        padding: 2px 8px !important;
     }
-
-    .welcome-title {
-        color: #ffffff !important;
-        font-size: clamp(18px, 4vw, 24px);
-        font-weight: 700;
-        margin-bottom: 10px;
-        font-family: 'Georgia', serif;
-    }
-
-    .welcome-text {
-        color: #ffffff !important;
-        font-size: clamp(14px, 2vw, 16px);
-        font-family: 'Georgia', serif;
-    }
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary:hover { color: var(--ink) !important; }
 
     /* ==============================================
-       LOGIN/SIGNUP PAGES
+       BUTTONS — flat, solid, professional
        ============================================== */
-    .login-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 80vh;
-        padding: 40px 20px;
-    }
-
-    .login-box-wrapper {
-        background: white;
-        padding: 45px 40px;
-        border-radius: 16px;
-        box-shadow: 0 10px 50px rgba(78, 84, 200, 0.12);
-        max-width: 420px;
-        width: 100%;
-    }
-
-    .login-header {
-        text-align: center;
-        margin-bottom: 30px;
-    }
-
-    .login-title {
-        font-size: 32px;
-        font-weight: 700;
-        color: #4e54c8;
-        margin-bottom: 8px;
-        font-family: 'Georgia', serif;
-    }
-
-    .login-subtitle {
-        font-size: 15px;
-        color: #667eea;
-        font-weight: 400;
-        font-family: 'Georgia', serif;
-    }
-
-    /* Input Field Styling */
-    .login-input-wrapper {
-        margin-bottom: 20px;
-    }
-
-    .login-label {
-        display: block;
-        font-size: 14px;
-        font-weight: 600;
-        color: #374151;
-        margin-bottom: 8px;
-        font-family: 'Georgia', serif;
-    }
-
-    /* Override Streamlit input styling */
-    .stTextInput > div > div > input,
-    .stTextInput > div > input {
-        border: 2px solid #e5e7eb !important;
-        border-radius: 10px !important;
-        padding: 12px 16px !important;
-        font-size: 15px !important;
-        font-family: 'Georgia', serif !important;
-        transition: all 0.3s ease !important;
-        height: auto !important;
-        width: 100% !important;
-        background: #f9fafb !important;
-    }
-
-    .stTextInput > div > div > input:focus,
-    .stTextInput > div > input:focus {
-        border-color: #667eea !important;
-        outline: none !important;
-        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1) !important;
-        background: white !important;
-    }
-
-    /* Input Field Labels - Fixed Black, No Bold, No Hover */
-    .stTextInput label,
-    .stTextInput label p {
-        color: #000000 !important;
-        font-weight: 400 !important;
-        transition: none !important;
-    }
-
-    .stTextInput label:hover,
-    .stTextInput label:hover p {
-        color: #000000 !important;
-        font-weight: 400 !important;
-    }
-
-    /* Modern Button Styling */
     .stButton > button {
         width: 100% !important;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: white !important;
+        background: var(--primary) !important;
+        color: #ffffff !important;
         font-weight: 600 !important;
-        font-size: 15px !important;
-        padding: 9px 12px !important;
-        border: none !important;
-        border-radius: 10px !important;
+        font-size: 14px !important;
+        padding: 9px 16px !important;
+        border: 1px solid var(--primary) !important;
+        border-radius: 8px !important;
         cursor: pointer !important;
-        transition: all 0.3s ease !important;
-        font-family: 'Georgia', serif !important;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
-        margin-top: 10px !important;
+        transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+        box-shadow: var(--shadow-xs) !important;
+        margin-top: 6px !important;
     }
-
     .stButton > button:hover {
-        background: linear-gradient(90deg, #8f94fb, #764ba2) !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+        background: var(--primary-hover) !important;
+        border-color: var(--primary-hover) !important;
+        box-shadow: var(--shadow-sm) !important;
+        transform: none !important;
     }
-
-    /* Login/Signup Page Button Styling - Higher Specificity */
-    .stTabs .stButton > button {
-        width: 100% !important;
-        background: linear-gradient(135deg, #4e54c8, #8f94fb) !important;
-        color: white !important;
-        font-weight: 600 !important;
-        font-size: 15px !important;
-        padding: 9px 12px !important;
-        border: none !important;
-        border-radius: 10px !important;
-        cursor: pointer !important;
-        transition: all 0.3s ease !important;
-        font-family: 'Georgia', serif !important;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
-        margin-top: 10px !important;
+    .stButton > button:focus-visible {
+        outline: 2px solid var(--primary) !important;
+        outline-offset: 2px !important;
     }
-
-    .stTabs .stButton > button:hover {
-        background: linear-gradient(135deg, #8f94fb, #4e54c8) !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
-    }
-
-    /* Create Account Button - Specific Gradient */
-    button[data-testid="baseButton-secondary"]:has-text("Create Account"),
-    div[data-testid="stVerticalBlock"] button:nth-of-type(2) {
-        background: linear-gradient(135deg, #4e54c8, #8f94fb) !important;
-    }
-
-    button[data-testid="baseButton-secondary"]:has-text("Create Account"):hover,
-    div[data-testid="stVerticalBlock"] button:nth-of-type(2):hover {
-        background: linear-gradient(135deg, #8f94fb, #4e54c8) !important;
-    }
-
-    /* Tab Styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 5px;
-        background-color: #f3f4f6;
-        border-radius: 12px;
-        padding: 6px;
-        margin-bottom: 30px;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 10px;
-        font-family: 'Georgia', serif;
-        font-weight: 600;
-        font-size: 15px;
-        padding: 9px 20px;
-        transition: all 0.3s ease;
-        border: none;
-        cursor: pointer;
-        color: #666666; /* Force dark text for unselected tabs */
-    }
-
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: white !important;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
-        border-radius: 10px !important;
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
-    }
-
-    /* Links Styling */
-    .login-links {
-        text-align: center;
-        margin-top: 25px;
-        padding-top: 25px;
-        border-top: 1px solid #e5e7eb;
-        font-family: 'Georgia', serif;
-    }
-
-    .login-link {
-        color: #667eea;
-        text-decoration: none;
-        font-size: 14px;
-        font-weight: 500;
-        transition: color 0.3s ease;
-        font-family: 'Georgia', serif;
-    }
-
-    .login-link:hover {
-        color: #764ba2;
-        text-decoration: underline;
-    }
-
-    /* Primary Button Override - Custom Gradient */
     .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        border: none !important;
-        color: white !important;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+        background: var(--primary) !important;
+        border-color: var(--primary) !important;
+        color: #ffffff !important;
+    }
+    .stButton > button[kind="secondary"] {
+        background: #ffffff !important;
+        color: var(--text) !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: var(--shadow-xs) !important;
+    }
+    .stButton > button[kind="secondary"]:hover {
+        border-color: var(--border-hover) !important;
+        background: #fafafc !important;
+        color: var(--ink) !important;
     }
 
-    .stButton > button[kind="primary"]:hover {
-        background: linear-gradient(90deg, #8f94fb, #764ba2) !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+    /* Download buttons — outlined */
+    .stDownloadButton > button {
+        width: 100% !important;
+        background: #ffffff !important;
+        color: var(--primary) !important;
+        border: 1px solid var(--primary-border) !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        padding: 9px 16px !important;
+        box-shadow: var(--shadow-xs) !important;
+        transition: all 0.15s ease !important;
+    }
+    .stDownloadButton > button:hover {
+        background: var(--primary-soft) !important;
+        border-color: var(--primary) !important;
+        transform: none !important;
     }
 
     /* ==============================================
-       DASHBOARD CONTENT STYLING
+       INPUTS / TEXTAREA / SELECT
        ============================================== */
-    .dashboard-header {
-        background: linear-gradient(135deg, #f8f9ff, #e8ecff);
-        padding: clamp(20px, 4vw, 30px);
-        border-radius: 16px;
-        border: 1px solid #d1d9ff;
-        margin-bottom: 30px;
-        box-shadow: 0 4px 15px rgba(78, 84, 200, 0.08);
+    .stTextInput input { color: var(--ink) !important; }
+    ::placeholder { color: #a3a6bd !important; opacity: 1 !important; }
+    .stTextInput input::placeholder,
+    .stTextArea textarea::placeholder { color: #a3a6bd !important; font-weight: 400 !important; }
+
+    .stTextInput > div > div > input,
+    .stTextInput > div > input {
+        border: 1px solid var(--border) !important;
+        border-radius: 8px !important;
+        padding: 10px 12px !important;
+        font-size: 14px !important;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+        height: auto !important;
+        width: 100% !important;
+        background: #ffffff !important;
+        box-shadow: var(--shadow-xs) !important;
+    }
+    .stTextInput > div > div > input:focus,
+    .stTextInput > div > input:focus {
+        border-color: var(--primary) !important;
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(78, 84, 200, 0.12) !important;
+    }
+    .stTextInput div[data-baseweb="input"] {
+        border-radius: 8px !important;
+        background: transparent !important;
+        border: none !important;
     }
 
-    .feature-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 25px rgba(78, 84, 200, 0.12);
-        border-color: #d1d9ff;
+    .stTextArea textarea {
+        border: 1px solid var(--border) !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        font-size: 14px !important;
+        background: #ffffff !important;
+        color: var(--ink) !important;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+        box-shadow: var(--shadow-xs) !important;
+    }
+    .stTextArea textarea:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(78, 84, 200, 0.12) !important;
+        outline: none !important;
+    }
+    .stTextArea div[data-baseweb="textarea"] {
+        border-radius: 8px !important;
+        border: none !important;
+        background: transparent !important;
     }
 
-    /* Chat Styling */
-    .user-bubble, .assistant-bubble {
-        padding: 12px 18px;
-        border-radius: 18px;
-        max-width: clamp(70%, 85%, 90%);
-        font-family: 'Georgia', serif;
+    /* Labels */
+    .stTextInput label, .stTextInput label p,
+    .stTextArea label, .stTextArea label p,
+    .stSelectbox label, .stSelectbox label p,
+    .stMultiSelect label, .stMultiSelect label p,
+    .stDateInput label, .stDateInput label p,
+    .stFileUploader label, .stFileUploader label p,
+    .stSlider label, .stCheckbox label p {
+        color: var(--ink) !important;
+        font-weight: 500 !important;
+        font-size: 13.5px !important;
+    }
+
+    /* Selectbox / Multiselect */
+    .stSelectbox div[data-baseweb="select"] > div,
+    .stMultiSelect div[data-baseweb="select"] > div {
+        border: 1px solid var(--border) !important;
+        border-radius: 8px !important;
+        background: #ffffff !important;
+        transition: border-color 0.15s ease !important;
+        min-height: 40px;
+        box-shadow: var(--shadow-xs);
+    }
+    .stSelectbox div[data-baseweb="select"] > div:hover,
+    .stMultiSelect div[data-baseweb="select"] > div:hover {
+        border-color: var(--border-hover) !important;
+    }
+    div[data-baseweb="popover"] ul[role="listbox"] {
+        border-radius: 8px !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: var(--shadow-md) !important;
+    }
+    .stMultiSelect span[data-baseweb="tag"] {
+        background: var(--primary-soft) !important;
+        border: 1px solid var(--primary-border) !important;
+        border-radius: 6px !important;
+        color: var(--primary) !important;
+    }
+    .stMultiSelect span[data-baseweb="tag"] span { color: var(--primary) !important; }
+
+    .stDateInput div[data-baseweb="input"] {
+        border: 1px solid var(--border) !important;
+        border-radius: 8px !important;
+        background: #ffffff !important;
+    }
+
+    /* ==============================================
+       TABS — underline style (Linear/Stripe)
+       ============================================== */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2px;
+        background: transparent;
+        border-radius: 0;
+        padding: 0;
+        margin-bottom: 22px;
+        border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 6px 6px 0 0;
+        font-weight: 500;
         font-size: 14px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        padding: 9px 14px;
+        transition: color 0.15s ease, background 0.15s ease;
+        border: none;
+        cursor: pointer;
+        color: var(--muted);
+        background: transparent;
+        margin-bottom: 0;
+    }
+    .stTabs [data-baseweb="tab"] p { font-size: 14px !important; color: inherit !important; }
+    .stTabs [aria-selected="true"] {
+        background: transparent !important;
+        color: var(--primary) !important;
+        box-shadow: none !important;
+        font-weight: 600;
+    }
+    .stTabs [aria-selected="true"] p { color: var(--primary) !important; }
+    .stTabs [data-baseweb="tab"]:hover:not([aria-selected="true"]) {
+        background: #f2f3f9;
+        color: var(--ink);
+    }
+    .stTabs [data-baseweb="tab-highlight"] {
+        background-color: var(--primary) !important;
+        height: 2px !important;
+    }
+    .stTabs [data-baseweb="tab-border"] { display: none !important; }
+
+    /* ==============================================
+       FILE UPLOADER
+       ============================================== */
+    [data-testid="stFileUploaderDropzone"] {
+        background: #fafafc !important;
+        border: 1px dashed var(--border-hover) !important;
+        border-radius: var(--radius) !important;
+        transition: border-color 0.15s ease, background 0.15s ease !important;
+    }
+    [data-testid="stFileUploaderDropzone"]:hover {
+        border-color: var(--primary) !important;
+        background: var(--primary-soft) !important;
+    }
+    [data-testid="stFileUploaderDropzone"] button {
+        background: #ffffff !important;
+        color: var(--text) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 8px !important;
+        font-weight: 500 !important;
+        transition: border-color 0.15s ease !important;
+    }
+    [data-testid="stFileUploaderDropzone"] button:hover {
+        border-color: var(--border-hover) !important;
+    }
+    [data-testid="stFileUploaderDropzone"] span,
+    [data-testid="stFileUploaderDropzone"] small { color: var(--muted) !important; }
+
+    /* ==============================================
+       EXPANDERS
+       ============================================== */
+    .main [data-testid="stExpander"] {
+        border: 1px solid var(--border) !important;
+        border-radius: var(--radius) !important;
+        background: #ffffff !important;
+        box-shadow: var(--shadow-xs) !important;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+    .main [data-testid="stExpander"] summary {
+        font-weight: 500 !important;
+        color: var(--text) !important;
+        padding: 4px 6px;
+        font-size: 14px !important;
+    }
+    .main [data-testid="stExpander"] summary:hover { color: var(--primary) !important; }
+
+    /* ==============================================
+       METRICS
+       ============================================== */
+    [data-testid="stMetric"] {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+        box-shadow: var(--shadow-xs);
+    }
+    [data-testid="stMetricValue"] {
+        color: var(--ink) !important;
+        font-weight: 700 !important;
+    }
+    [data-testid="stMetricLabel"] { color: var(--muted) !important; }
+
+    /* ==============================================
+       ALERTS
+       ============================================== */
+    [data-testid="stAlert"] {
+        border-radius: 8px !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: none !important;
+        font-size: 14px !important;
+    }
+
+    /* ==============================================
+       SLIDERS
+       ============================================== */
+    .stSlider [data-baseweb="slider"] div[role="slider"] {
+        background-color: #ffffff !important;
+        border: 2px solid var(--primary) !important;
+        box-shadow: var(--shadow-xs) !important;
+    }
+    .stSlider > div > div > div > div { background-color: var(--primary) !important; }
+    .stSlider > div > div > div { background-color: #e3e4f0 !important; }
+    .stSlider [data-testid="stTickBarMin"],
+    .stSlider [data-testid="stTickBarMax"] { color: var(--muted) !important; }
+    .stSlider div[data-testid="stSliderThumbValue"] {
+        color: var(--primary) !important;
+        font-weight: 600 !important;
+    }
+
+    /* ==============================================
+       CHAT
+       ============================================== */
+    .user-message { text-align: right; margin: 8px 0; }
+    .assistant-message { margin: 8px 0; }
+    .user-bubble {
+        display: inline-block;
+        background: var(--primary);
+        color: #ffffff;
+        padding: 10px 14px;
+        border-radius: 14px 14px 4px 14px;
+        max-width: 72%;
+        font-size: 14px;
+        line-height: 1.55;
+        text-align: left;
         word-wrap: break-word;
     }
+    .assistant-bubble {
+        display: inline-block;
+        background: #ffffff;
+        padding: 10px 14px;
+        border-radius: 14px 14px 14px 4px;
+        max-width: 78%;
+        border: 1px solid var(--border);
+        font-size: 14px;
+        line-height: 1.6;
+        word-wrap: break-word;
+        color: var(--text);
+        box-shadow: var(--shadow-xs);
+    }
 
-    /* Demo Button Styling */
+    [data-testid="stChatInput"] {
+        border: 1px solid var(--border) !important;
+        border-radius: 10px !important;
+        background: #ffffff !important;
+        box-shadow: var(--shadow-xs) !important;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+    }
+    [data-testid="stChatInput"]:focus-within {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(78, 84, 200, 0.12) !important;
+    }
+    [data-testid="stChatInput"] textarea { color: var(--ink) !important; }
+    [data-testid="stChatInput"] button {
+        background: var(--primary) !important;
+        border-radius: 8px !important;
+        color: white !important;
+    }
+
+    /* ==============================================
+       POPOVER (profile menu)
+       ============================================== */
+    [data-testid="stPopoverBody"] {
+        border-radius: var(--radius) !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: var(--shadow-md) !important;
+    }
+
+    /* ==============================================
+       STAT CARDS
+       ============================================== */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+    .stat-card {
+        background: #ffffff;
+        padding: 18px 20px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow-xs);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .stat-card:hover {
+        border-color: var(--border-hover);
+        box-shadow: var(--shadow-sm);
+    }
+    .stat-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin: 0 0 8px 0;
+    }
+    .stat-value {
+        color: var(--ink);
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0 0 4px 0;
+        line-height: 1.1;
+    }
+    .stat-sub {
+        color: var(--muted);
+        font-size: 12.5px;
+        margin: 0;
+    }
+    /* Legacy classes kept for safety */
+    .feature-title { color: var(--ink) !important; font-size: 15px !important; font-weight: 600 !important; margin: 0 0 4px 0 !important; }
+    .feature-description { color: var(--muted) !important; font-size: 13px !important; margin: 0 !important; }
+
+    /* Quote card */
+    .quote-card {
+        text-align: center;
+        margin-top: 20px;
+        background: #ffffff;
+        padding: clamp(22px, 3vw, 32px);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-xs);
+    }
+    .quote-card h3 {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin: 0 0 12px 0;
+    }
+    .quote-card .quote-text {
+        color: var(--ink);
+        font-size: clamp(15px, 2vw, 17px);
+        font-style: italic;
+        margin: 0 0 8px 0;
+        line-height: 1.6;
+    }
+    .quote-card .quote-author {
+        color: var(--muted);
+        font-size: 13px;
+        margin: 6px 0 0 0;
+    }
+
+    /* ==============================================
+       QUIZ RESULTS
+       ============================================== */
+    .quiz-container {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 20px 22px 12px 22px;
+        box-shadow: var(--shadow-xs);
+        margin: 16px 0 12px 0;
+    }
+
+    /* ==============================================
+       FLASH CARDS
+       ============================================== */
+    .flash-card {
+        background: #ffffff;
+        padding: clamp(20px, 3vw, 28px);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow-sm);
+        text-align: center;
+        margin: 18px 0;
+    }
+    .flash-card-counter {
+        display: inline-block;
+        background: var(--primary-soft);
+        color: var(--primary);
+        border: 1px solid var(--primary-border);
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 6px;
+        margin-bottom: 14px;
+    }
+    .flash-card-face {
+        background: #fafafc;
+        border: 1px solid var(--border);
+        padding: clamp(16px, 2.5vw, 24px);
+        border-radius: var(--radius);
+        margin: 6px 0;
+    }
+    .flash-card-face h4 {
+        color: var(--muted);
+        margin: 0 0 8px 0;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .flash-card-face p {
+        font-size: clamp(15px, 2.2vw, 17px);
+        color: var(--ink);
+        margin: 0;
+        line-height: 1.55;
+    }
+    .flash-card-face.answer {
+        background: #f4faf6;
+        border-color: #d3ecd9;
+    }
+    .flash-card-face.answer h4 { color: #1f9d55; }
+
+    /* ==============================================
+       COMING SOON
+       ============================================== */
+    .coming-soon {
+        text-align: center;
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: clamp(40px, 6vw, 64px) 24px;
+        box-shadow: var(--shadow-xs);
+        margin-top: 16px;
+    }
+    .coming-soon-icon { font-size: 44px; margin-bottom: 14px; }
+    .coming-soon-title { color: var(--ink); font-weight: 700; margin-bottom: 10px; }
+    .coming-soon-text {
+        color: var(--muted);
+        max-width: 480px;
+        margin: 0 auto;
+        line-height: 1.6;
+        font-size: 14px;
+    }
+
+    /* ==============================================
+       FOOTER
+       ============================================== */
+    .lb-footer {
+        text-align: center;
+        color: #a3a6bd;
+        font-size: 12px;
+        margin: 8px 0 0 0;
+    }
+
     .dev-access-container {
         margin-top: 30px;
         padding: 20px;
-        background: #fff5f5;
-        border: 1px dashed #feb2b2;
-        border-radius: 12px;
+        background: #fff7f7;
+        border: 1px dashed #f3c1c1;
+        border-radius: var(--radius);
         text-align: center;
     }
 
-    /* Streamlit Default Element Hides */
-    .stDeployButton { display: none; }
-
-    /* User Info Hover & Click Effects */
-    .user-info:hover {
-        background: linear-gradient(135deg, #e8ecff, #d6d9ff) !important;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(78, 84, 200, 0.15) !important;
+    /* Login extras */
+    .login-links {
+        text-align: center;
+        margin-top: 22px;
+        padding-top: 22px;
+        border-top: 1px solid var(--border);
     }
+    .login-link {
+        color: var(--primary);
+        text-decoration: none;
+        font-size: 13.5px;
+        font-weight: 500;
+    }
+    .login-link:hover { text-decoration: underline; }
 
     /* ==============================================
-       MEDIA QUERIES FOR RESPONSIVENESS
+       SCROLLBARS
        ============================================== */
-    
-    /* Extra Small Devices (Portrait Phones) */
-    @media only screen and (max-width: 600px) {
-        .st-emotion-cache-10p9htt.e6f82ta4 {
-            background-color: #ffffff;
-        }
-
-        .st-emotion-cache-5r6ut5 {
-            background: linear-gradient(135deg, #4e54c8, #8f94fb) !important;
-        }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+        background: #d5d7e6;
+        border-radius: 999px;
+        border: 2px solid transparent;
+        background-clip: content-box;
     }
-    
-    @media only screen and (max-width: 480px) {
-        .main .block-container {
-            padding: 0.75rem !important;
-        }
-        .login-box-wrapper {
-            padding: 20px 15px !important;
-        }
-        .stButton > button {
-            padding: 8px 10px !important;
-        }
-    }
+    ::-webkit-scrollbar-thumb:hover { background-color: #b8bbd4; }
 
-    /* Mobile Devices (Phones) */
+    /* ==============================================
+       RESPONSIVE
+       ============================================== */
     @media only screen and (max-width: 768px) {
-        .main .block-container {
-            padding-top: 1rem !important; 
-            padding-bottom: 1rem !important;
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
-        }
-
-        /* Navigation */
-        .nav-container {
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .nav-title {
-            font-size: 1.2rem !important;
-            text-align: center;
-        }
-
-        /* Chat Bubbles */
+        .main .block-container { padding: 1rem 0.9rem 2rem 0.9rem !important; }
         .user-bubble, .assistant-bubble {
             max-width: 92% !important;
-            padding: 10px 14px !important;
-            font-size: 13px !important;
+            font-size: 13.5px !important;
         }
-        
-        /* Sidebar Elements */
-        [data-testid="stSidebar"] {
-            min-width: 250px !important;
-        }
+        [data-testid="stSidebar"] { min-width: 260px !important; }
+        .stTabs [data-baseweb="tab"] { padding: 8px 10px; font-size: 13.5px; }
     }
-
-    /* Tablets and Small Laptops */
-    @media only screen and (min-width: 769px) and (max-width: 1023px) {
-        .main .block-container {
-            padding: 1.5rem !important;
-        }
-        .user-bubble, .assistant-bubble {
-            max-width: 85% !important;
-        }
-        .login-box-wrapper {
-            max-width: 400px;
-        }
-    }
-
-    /* Small Laptops (13" laptops, 1024-1366px) */
-    @media only screen and (min-width: 1024px) and (max-width: 1366px) {
-        .main .block-container {
-            padding: 1.75rem !important;
-            max-width: 1100px;
-        }
-        
-        .user-bubble, .assistant-bubble {
-            max-width: 80% !important;
-            font-size: 14px !important;
-        }
-        
-        .login-box-wrapper {
-            max-width: 420px;
-            padding: 40px 35px;
-        }
-        
-        [data-testid="stSidebar"] {
-            min-width: 280px !important;
-        }
-        
-        .dashboard-header {
-            padding: clamp(18px, 3vw, 25px);
-        }
-        
-        .welcome-container {
-            padding: clamp(8px, 1.8vw, 18px);
-        }
-    }
-
-    /* Medium Laptops (14-15" laptops, 1367-1600px) */
-    @media only screen and (min-width: 1367px) and (max-width: 1600px) {
-        .main .block-container {
-            padding: 2rem !important;
-            max-width: 1300px;
-        }
-        
-        .user-bubble, .assistant-bubble {
-            max-width: 78% !important;
-        }
-        
-        .login-box-wrapper {
-            max-width: 440px;
-            padding: 45px 40px;
-        }
-        
-        [data-testid="stSidebar"] {
-            min-width: 300px !important;
-        }
-        
-        .dashboard-header {
-            padding: clamp(20px, 3.5vw, 28px);
-        }
-    }
-
-    /* Large Laptops (15-17" Full HD, 1601-1920px) */
-    @media only screen and (min-width: 1601px) and (max-width: 1920px) {
-        .main .block-container {
-            padding: 2.5rem !important;
-            max-width: 1400px;
-        }
-        
-        .user-bubble, .assistant-bubble {
-            max-width: 75% !important;
-        }
-        
-        .login-box-wrapper {
-            max-width: 460px;
-            padding: 50px 45px;
-        }
-        
-        [data-testid="stSidebar"] {
-            min-width: 320px !important;
-        }
-        
-        .dashboard-header {
-            padding: clamp(22px, 4vw, 30px);
-        }
-        
-        .stButton > button {
-            font-size: 16px !important;
-        }
-    }
-
-    /* Extra Large Screens (4K laptops, monitors, 1921px+) */
-    @media only screen and (min-width: 1921px) {
-        .main .block-container {
-            padding: 3rem !important;
-            max-width: 1600px;
-        }
-        
-        .user-bubble, .assistant-bubble {
-            max-width: 70% !important;
-            font-size: 15px !important;
-        }
-        
-        .login-box-wrapper {
-            max-width: 480px;
-            padding: 55px 50px;
-        }
-        
-        [data-testid="stSidebar"] {
-            min-width: 340px !important;
-        }
-        
-        .dashboard-header {
-            padding: 30px;
-        }
-        
-        .stButton > button {
-            font-size: 16px !important;
-            padding: 10px 14px !important;
-        }
-        
-        .main-title {
-            font-size: 48px;
-        }
-    }
-
-    /* Global Tab Hover Effect */
-    button[data-baseweb="tab"]:hover {
-        background: linear-gradient(90deg, #4e54c8, #8f94c8) !important;
-        color: white !important;
-        border-radius: 0px !important;
-        transition: all 0.3s ease !important;
-    }
-
-    /* Custom Font Color Override - Tabs */
-    .st-emotion-cache-1jsf23j, 
-    .st-emotion-cache-1jsf23j p, 
-    .st-emotion-cache-1jsf23j span {
-        color: #000000 !important;
-        transition: color 0.3s ease !important;
-    }
-
-    .st-emotion-cache-1jsf23j:hover,
-    .st-emotion-cache-1jsf23j:hover p,
-    .st-emotion-cache-1jsf23j:hover span,
-    .st-emotion-cache-1jsf23j[aria-selected="true"],
-    .st-emotion-cache-1jsf23j[aria-selected="true"] p,
-    .st-emotion-cache-1jsf23j[data-selected="true"] {
-        color: #FFFFFF !important;
-    }
-
-    /* Container Background Override */
-    .st-c2 {
-        background-color: #764ba2 !important;
-    }
-
-    /* Custom Emotion Cache Color Override */
-    .st-emotion-cache-11xx4re {
-        color: #8f94fb !important;
-    }
-
-    .st-emotion-cache-1lsfsc6 {
-        background: linear-gradient(90deg, #8f94fb, #764ba2) !important;
-    }
-
-    .st-emotion-cache-pxambx {
-        background: linear-gradient(90deg, #8f94fb, #764ba2) !important;
-    }
-
-    /* Global Placeholder Styling */
-    ::placeholder {
-        color: #8f94fb !important;
-        opacity: 0.8 !important;
-    }
-
-    /* Slider Styling */
-    .stSlider > div > div > div > div {
-        background-color: #8f94fb !important;
-    }
-    
-    .stSlider > div > div > div {
-        background-color: rgba(143, 148, 251, 0.2) !important;
-    }
-    
-    .stSlider [role="slider"] {
-        background-color: #8f94fb !important;
-    }
-    
-    .stSlider label {
-        color: #8f94fb !important;
-        font-weight: 600 !important;
-    }
-
-    /* Mobile Responsiveness for Login Logo */
-    @media (max-width: 480px) {
+    @media only screen and (max-width: 480px) {
+        .main .block-container { padding: 0.75rem 0.65rem 2rem 0.65rem !important; }
+        .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-value { font-size: 22px; }
         .login-logo-wrapper .lb-logo-svg {
-            width: 60px !important;
-            height: 60px !important;
-            min-width: 60px !important;
+            width: 56px !important;
+            height: 56px !important;
+            min-width: 56px !important;
         }
         .login-logo-wrapper .lb-logo-text {
-            font-size: 28px !important;
+            font-size: 26px !important;
             margin-left: -5px !important;
         }
+    }
+    @media only screen and (min-width: 1600px) {
+        .main .block-container { max-width: 1320px; }
+        .user-bubble, .assistant-bubble { max-width: 70% !important; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        * { transition: none !important; animation: none !important; }
     }
     </style>
     """,
@@ -1000,19 +1052,52 @@ def show_login_page():
     st.markdown(
         """
         <style>
-        /* Make the Labels (e.g. "Username") Bold */
-        .stTextInput label p {
-            font-weight: 700 !important;
-            font-size: 15px !important;
-            font-family: 'Georgia', serif !important;
+        /* ===== AUTH PAGE — clean centered card ===== */
+        .main .block-container {
+            padding-top: clamp(2rem, 9vh, 6rem) !important;
+            max-width: 1080px;
         }
-        
-        /* Make the Placeholders (e.g. "Enter your username") Bold */
-        .stTextInput input::placeholder {
-            font-weight: 700 !important;
-            color: #8f94fb !important; /* Updated brand color */
-            font-family: 'Georgia', serif !important;
+
+        /* Middle column becomes the auth card */
+        .main div[data-testid="stColumn"]:nth-child(2) {
+            background: #ffffff;
+            border: 1px solid #e7e8f0;
+            border-radius: 12px;
+            padding: clamp(24px, 3.5vw, 40px) clamp(20px, 3vw, 36px);
+            box-shadow: 0 1px 3px rgba(22, 24, 45, 0.06), 0 12px 32px rgba(22, 24, 45, 0.07);
         }
+
+        /* Login / Sign Up switcher spans the card */
+        .stTabs [data-baseweb="tab-list"] { justify-content: center; }
+        .stTabs [data-baseweb="tab"] {
+            flex: 1;
+            justify-content: center;
+            text-align: center;
+        }
+
+        /* Primary auth buttons slightly larger */
+        .st-key-login_btn button, .st-key-signup_btn button {
+            padding: 11px 16px !important;
+            font-size: 14.5px !important;
+        }
+
+        /* "Forgot Password?" as a quiet text link */
+        .st-key-forgot_pass_simple_btn button {
+            background: transparent !important;
+            color: #4e54c8 !important;
+            box-shadow: none !important;
+            border: none !important;
+            font-weight: 500 !important;
+            font-size: 13px !important;
+            padding: 4px 8px !important;
+            margin-top: 0 !important;
+            width: auto !important;
+        }
+        .st-key-forgot_pass_simple_btn button:hover {
+            text-decoration: underline;
+            background: transparent !important;
+        }
+        .st-key-forgot_pass_simple_btn { display: flex; justify-content: center; }
         </style>
         """,
         unsafe_allow_html=True
@@ -1119,40 +1204,31 @@ def show_dashboard():
                     background-color: transparent;
                     margin-bottom: 1rem;
                 }
-                /* Navbar Container Styling */
-                div[data-testid="stHorizontalBlock"]:has(img[src^="data:image"]) {
-                    background: linear-gradient(135deg, #4e54c8, #8f94fb);
-                    padding: 1.5rem 2rem;
-                    border-radius: 16px;
-                    box-shadow: 0 4px 20px rgba(78, 84, 200, 0.2);
-                    align-items: center;
-                    margin-bottom: 0.5rem;
-                }
-
-                /* User Profile Button Styling - Glass Effect */
+                /* User profile button — quiet outlined control */
                 [data-testid="stPopover"] > button {
-                    background: rgba(255, 255, 255, 0.15) !important;
-                    backdrop-filter: blur(10px);
-                    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-                    color: white !important;
-                    border-radius: 12px !important;
-                    padding: 0.5rem 1rem !important;
-                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
-                    font-family: 'Georgia', serif !important;
-                    font-weight: 600 !important;
+                    background: #ffffff !important;
+                    border: 1px solid #e7e8f0 !important;
+                    color: #3f4257 !important;
+                    border-radius: 8px !important;
+                    padding: 0.45rem 0.9rem !important;
+                    box-shadow: 0 1px 2px rgba(22, 24, 45, 0.05) !important;
+                    font-weight: 500 !important;
                     height: auto !important;
-                    transition: all 0.3s ease !important;
+                    width: auto !important;
+                    transition: border-color 0.15s ease, background 0.15s ease !important;
                 }
                 [data-testid="stPopover"] > button:hover {
-                    transform: translateY(-2px) !important;
-                    background: rgba(255, 255, 255, 0.25) !important;
-                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
-                    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+                    border-color: #d5d7e6 !important;
+                    background: #fafafc !important;
+                    transform: none !important;
                 }
                 [data-testid="stPopover"] > button p {
-                    font-size: 16px !important;
-                    font-weight: 600 !important;
+                    font-size: 14px !important;
+                    font-weight: 500 !important;
+                    color: #3f4257 !important;
                 }
+                /* Keep navbar row vertically aligned */
+                div[data-testid="stHorizontalBlock"] { align-items: center; }
             </style>
         """, unsafe_allow_html=True)
         
@@ -1258,15 +1334,11 @@ def show_dashboard():
             # Custom styling for logout button
             st.markdown("""
                 <style>
-                div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div:nth-last-child(1) button {
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-                    color: white !important;
-                    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
-                }
-                div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div:nth-last-child(1) button:hover {
-                    background: linear-gradient(90deg, #8f94fb, #764ba2) !important;
-                    transform: translateX(5px) translateY(-2px) !important;
-                    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+                /* Logout — quiet danger row */
+                .st-key-logout_btn button { color: #b42318 !important; }
+                .st-key-logout_btn button:hover {
+                    background: #fef3f2 !important;
+                    color: #b42318 !important;
                 }
                 </style>
             """, unsafe_allow_html=True)
@@ -1327,11 +1399,18 @@ def show_coming_soon_feature(feature_name):
 # ==========================
 def show_welcome_screen():
     """Display welcome screen with learning visuals"""
-    # WELCOME MESSAGE CARD (THEMED BG)
+    # Personalized greeting (display-only)
+    _current_user = st.session_state.get("current_user")
+    _greet_name = st.session_state.get("user_display_name") or (
+        _current_user if isinstance(_current_user, str) else "Learner"
+    )
+
+    # PAGE HEADER
     st.markdown(
-        """
+        f"""
         <div class="welcome-container">
-            <h1 class="welcome-title">Welcome to your Dashboard!</h1>
+            <p class="welcome-eyebrow">Dashboard</p>
+            <h1 class="welcome-title">Welcome back, {_greet_name}</h1>
             <p class="welcome-text">
                 Your comprehensive educational platform powered by AI. Choose a feature from the sidebar to get started.
             </p>
@@ -1351,53 +1430,28 @@ def show_welcome_screen():
     total_activities = study_sessions + quizzes_created + recordings_count
     progress_percentage = min(100, total_activities * 5) if total_activities > 0 else 0
 
-    # CSS for responsive grid of stats cards
-    st.markdown("""
-        <style>
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .stat-card {
-            background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%);
-            padding: 24px;
-            border-radius: 16px;
-            border: 1px solid #d1d9ff;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-            transition: transform 0.3s ease;
-        }
-        .stat-card:hover { transform: translateY(-3px); }
-        .stat-value { color: #4e54c8; font-size: 32px; margin: 10px 0; font-weight: 700; }
-        
-        /* Force dark text for these specific elements on the light card background */
-        .feature-title { color: #4e54c8 !important; font-size: 18px !important; font-weight: 600 !important; margin: 0 0 5px 0 !important; font-family: 'Georgia', serif !important; }
-        .feature-description { color: #555 !important; font-size: 14px !important; margin: 0 !important; font-family: 'Georgia', serif !important; }
-        </style>
-    """, unsafe_allow_html=True)
-
+    # Stat cards (styled by the global design system)
     st.markdown(f"""
         <div class="stats-grid">
             <div class="stat-card">
-                <h3 class="feature-title">Study Sessions</h3>
-                <p class="feature-description">Track your learning progress</p>
+                <p class="stat-label">Study Sessions</p>
                 <div class="stat-value">{study_sessions}</div>
+                <p class="stat-sub">Track your learning progress</p>
             </div>
             <div class="stat-card">
-                <h3 class="feature-title">Quizzes Created</h3>
-                <p class="feature-description">Interactive learning materials</p>
+                <p class="stat-label">Quizzes Created</p>
                 <div class="stat-value">{quizzes_created}</div>
+                <p class="stat-sub">Interactive learning materials</p>
             </div>
             <div class="stat-card">
-                <h3 class="feature-title">Recordings</h3>
-                <p class="feature-description">Audio content processed</p>
+                <p class="stat-label">Recordings</p>
                 <div class="stat-value">{recordings_count}</div>
+                <p class="stat-sub">Audio content processed</p>
             </div>
             <div class="stat-card">
-                <h3 class="feature-title">Progress</h3>
-                <p class="feature-description">Learning efficiency</p>
+                <p class="stat-label">Progress</p>
                 <div class="stat-value">{progress_percentage}%</div>
+                <p class="stat-sub">Learning efficiency</p>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -1406,41 +1460,10 @@ def show_welcome_screen():
     quote_data = get_random_quote()
     st.markdown(
         f"""
-        <div class="feature-card" style="
-            text-align: center; 
-            margin-top: 30px;
-            background: linear-gradient(135deg, #f8f9ff 0%, #e8ecff 100%); /* Light Theme Gradient BG */
-            padding: 30px;
-            border-radius: 16px;
-            border: 1px solid #d1d9ff;
-            box-shadow: 0 4px 15px rgba(78, 84, 200, 0.08);
-        ">
-            <h3 style="
-                color: #4e54c8; 
-                font-size: 20px; 
-                font-weight: 700; 
-                margin-bottom: 15px; 
-                font-family: 'Georgia', serif;
-            ">
-                Today's Learning Quote
-            </h3>
-            <p style="
-                color: #374151; 
-                font-size: 18px; 
-                font-style: italic; 
-                font-family: 'Georgia', serif; 
-                margin: 0 0 10px 0;
-            ">
-                "{quote_data['text']}"
-            </p>
-            <p style="
-                color: #6b7280; 
-                font-size: 14px; 
-                margin-top: 10px; 
-                font-family: 'Georgia', serif;
-            ">
-                — {quote_data['author']}
-            </p>
+        <div class="quote-card">
+            <h3>Today's Learning Quote</h3>
+            <p class="quote-text">"{quote_data['text']}"</p>
+            <p class="quote-author">— {quote_data['author']}</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -1740,163 +1763,14 @@ def show_chatbot_feature():
     st.markdown(
         """
         <style>
-        .main-title {
-            text-align: center;
-            font-size: 40px;
-            font-weight: 800;
-            background: linear-gradient(90deg, #4e54c8, #8f94fb, #4e54c8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: -5px;
-            font-family: 'Georgia', serif;
-        }
-        .tagline {
-            text-align: center;
-            font-size: 16px;
-            color: #666;
-            margin-bottom: 15px;
-            font-family: 'Georgia', serif;
-        }
-        hr.gradient {
-            border: none;
-            height: 3px;
-            background: linear-gradient(90deg, #4e54c8, #8f94fb, #4e54c8);
-            border-radius: 50px;
-            margin: 15px 0;
-        }
-        .custom-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 10px 24px;
-            font-size: 14px;
-            font-weight: 700;
-            color: white;
-            background: linear-gradient(90deg, #4e54c8, #8f94fb);
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-            font-family: 'Georgia', serif;
-            box-shadow: 0 3px 10px rgba(78, 84, 200, 0.3);
-            margin: 5px 0;
-        }
-        .custom-btn:hover {
-            background: linear-gradient(90deg, #8f94fb, #4e54c8);
-            transform: scale(1.03) translateY(-1px);
-            box-shadow: 0 5px 15px rgba(78, 84, 200, 0.4);
-        }
-        .clear-btn {
-            background: linear-gradient(90deg, #ff6b6b, #ee5a52);
-            color: white;
-            border: none;
-            border-radius: 15px;
-            padding: 8px 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 14px;
-            margin: 5px 0;
-        }
-        .clear-btn:hover {
-            background: linear-gradient(90deg, #ee5a52, #ff6b6b);
-            transform: scale(1.03);
-        }
+        /* Chat page: bubbles, header and inputs are styled by the global
+           design system. Page-specific tweaks only. */
         .chat-header {
-            color: #4e54c8;
-            font-size: 22px;
-            font-weight: 700;
-            margin-bottom: 10px;
-            text-align: center;
-            font-family: 'Georgia', serif;
-        }
-        .user-message {
-            text-align: right;
-            margin: 6px 0;
-        }
-        .user-bubble {
-            display: inline-block;
-            background: linear-gradient(90deg, #4e54c8, #8f94fb);
-            color: white;
-            padding: 10px 14px;
-            border-radius: 18px 18px 4px 18px;
-            max-width: 70%;
-            font-family: 'Georgia', serif;
-            font-size: 14px;
-            box-shadow: 0 2px 8px rgba(78, 84, 200, 0.3);
-        }
-        .assistant-message {
-            margin: 6px 0;
-            color: #202123;
-        }
-        .assistant-bubble {
-            background: white;
-            padding: 10px 14px;
-            border-radius: 18px 18px 18px 4px;
-            max-width: 70%;
-            border: 1px solid #e0e0e0;
-            font-family: 'Georgia', serif;
-            font-size: 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        .welcome-container {
-            text-align: center;
-            padding: 15px;
-            background: linear-gradient(90deg, #8f94fb, #764ba2 );
-            border-radius: 15px;
-            border: 1px solid #d1d9ff;
-            margin: 10px 0;
-        }
-        .welcome-title {
-            color: #ffffff !important;
+            color: #16182d;
             font-size: 20px;
             font-weight: 700;
             margin-bottom: 10px;
-            font-family: 'Georgia', serif;
-        }
-        .welcome-text {
-            color: #ffffff !important;
-            font-size: 16px;
-            font-family: 'Georgia', serif;
-        }
-        /* Professional chat input styling */
-        .stChatInput > div > div > input {
-            border: 2px solid #e0e0e0;
-            border-radius: 25px;
-            padding: 12px 16px;
-            font-family: 'Georgia', serif;
-            font-size: 14px;
-            background: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            transition: all 0.3s ease;
-        }
-        .stChatInput > div > div > input:focus {
-            border-color: #4e54c8;
-            box-shadow: 0 4px 12px rgba(78, 84, 200, 0.2);
-            outline: none;
-        }
-        /* Fixed page height - prevent scrolling */
-        .stApp {
-            max-height: 100vh;
-            overflow: hidden;
-        }
-        .block-container {
-            padding-top: 1rem;
-            padding-bottom: 0rem;
-            padding-left: 1rem;
-            padding-right: 1rem;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        /* Reduce sidebar padding */
-        .css-1d391kg {
-            padding: 0.5rem;
-        }
-        /* Style sidebar elements */
-        .stSidebar > div > div {
-            font-family: 'Georgia', serif;
+            text-align: center;
         }
         </style>
         """,
@@ -2031,7 +1905,7 @@ def show_chatbot_feature():
     # ---------------------------
     st.markdown("---")
     st.markdown(
-        "<p style='text-align: center; color: #888; font-size: 12px; font-family: Georgia, serif; margin-bottom: 0;'>"
+        "<p class='lb-footer'>"
         "© 2026 Lecturebuddies | Built with ❤️ for educational excellence | Powered by Groq AI</p>",
         unsafe_allow_html=True
     )
@@ -2555,11 +2429,11 @@ def display_flashcards(cards):
     # Card display
     st.markdown(
         f"""
-        <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; margin: 20px 0;">
-            <h3 style="color: #4e54c8; margin-bottom: 20px;">Card {current_index + 1} of {len(cards)}</h3>
-            <div style="background: #f8f9ff; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                <h4 style="color: #2c3e50; margin-bottom: 15px;">Front:</h4>
-                <p style="font-size: 18px; color: #333;">{current_card['front']}</p>
+        <div class="flash-card">
+            <div class="flash-card-counter">Card {current_index + 1} of {len(cards)}</div>
+            <div class="flash-card-face">
+                <h4>Front</h4>
+                <p>{current_card['front']}</p>
             </div>
         </div>
         """,
@@ -2570,9 +2444,9 @@ def display_flashcards(cards):
     if st.button("👁️ Show Answer", key="show_answer"):
         st.markdown(
             f"""
-            <div style="background: #e8f5e8; padding: 20px; border-radius: 10px; margin: 20px 0;">
-                <h4 style="color: #2c3e50; margin-bottom: 15px;">Back:</h4>
-                <p style="font-size: 18px; color: #333;">{current_card['back']}</p>
+            <div class="flash-card-face answer" style="margin: 16px 0;">
+                <h4>Back</h4>
+                <p>{current_card['back']}</p>
             </div>
             """,
             unsafe_allow_html=True

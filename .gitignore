@@ -1,0 +1,7 @@
+venv/
+.env
+__pycache__/
+temp/
+temp_recordings/
+*.db
+user_data/
