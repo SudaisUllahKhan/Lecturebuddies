@@ -933,6 +933,29 @@ st.markdown(
         font-size: 12px;
         margin: 8px 0 0 0;
     }
+    .app-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        margin-top: 44px;
+        padding: 16px 4px 4px 4px;
+        border-top: 1px solid var(--border);
+        color: #8b8ea6;
+        font-size: 12.5px;
+    }
+    .app-footer .footer-brand { font-weight: 600; color: var(--text); }
+    .app-footer .footer-credit b {
+        font-weight: 600;
+        background: linear-gradient(120deg, #4e54c8, #764ba2);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    @media (max-width: 600px) {
+        .app-footer { justify-content: center; text-align: center; }
+    }
 
     .dev-access-container {
         margin-top: 30px;
@@ -1058,6 +1081,21 @@ def show_simple_password_reset():
             st.rerun()
 
 # ==========================
+# APP FOOTER (display only)
+# ==========================
+def render_app_footer():
+    """Professional footer shown at the bottom of every page"""
+    st.markdown(
+        """
+        <div class="app-footer">
+            <span><span class="footer-brand">© 2026 LectureBuddies.</span> All rights reserved.</span>
+            <span class="footer-credit">Designed &amp; developed by <b>Autovex Solutions</b></span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+# ==========================
 # LOGIN AND SIGNUP SECTION
 # ==========================
 def show_login_page():
@@ -1181,7 +1219,10 @@ def show_login_page():
                         st.error("Passwords don't match")
                 else:
                     st.warning("Please fill in username and password fields")
-        
+
+        # Footer under the auth form
+        render_app_footer()
+
 
 
 # ==========================
@@ -1380,6 +1421,9 @@ def show_dashboard():
         show_profile_feature()
     else:
         show_coming_soon_feature(st.session_state.selected_feature)
+
+    # Footer on every dashboard page
+    render_app_footer()
 
 def show_coming_soon_feature(feature_name):
     """Placeholder for features not yet fully implemented"""
@@ -1906,15 +1950,7 @@ def show_chatbot_feature():
         st.session_state.messages.append({"role": "assistant", "content": reply})
         st.rerun()
     
-    # ---------------------------
-    # Footer (Compact)
-    # ---------------------------
-    st.markdown("---")
-    st.markdown(
-        "<p class='lb-footer'>"
-        "© 2026 Lecturebuddies | Built with ❤️ for educational excellence | Powered by Groq AI</p>",
-        unsafe_allow_html=True
-    )
+    # Footer is rendered globally by render_app_footer()
 
 # ==========================
 # QUIZ GENERATOR SECTION
