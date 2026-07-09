@@ -412,7 +412,7 @@ st.markdown(
     /* ==============================================
        BUTTONS — flat, solid, professional
        ============================================== */
-    .stButton > button {
+    .stButton button {
         width: 100% !important;
         background: linear-gradient(135deg, #4e54c8 0%, #667eea 55%, #764ba2 100%) !important;
         color: #ffffff !important;
@@ -426,34 +426,34 @@ st.markdown(
         box-shadow: 0 2px 8px rgba(78, 84, 200, 0.28) !important;
         margin-top: 6px !important;
     }
-    .stButton > button:hover {
+    .stButton button:hover {
         filter: brightness(1.08);
         box-shadow: 0 4px 14px rgba(78, 84, 200, 0.38) !important;
         transform: none !important;
     }
-    .stButton > button:focus-visible {
+    .stButton button:focus-visible {
         outline: 2px solid var(--primary) !important;
         outline-offset: 2px !important;
     }
-    .stButton > button[kind="primary"] {
+    .stButton button[kind="primary"] {
         background: linear-gradient(135deg, #4e54c8 0%, #667eea 55%, #764ba2 100%) !important;
         border: none !important;
         color: #ffffff !important;
     }
-    .stButton > button[kind="secondary"] {
+    .stButton button[kind="secondary"] {
         background: #ffffff !important;
         color: var(--text) !important;
         border: 1px solid var(--border) !important;
         box-shadow: var(--shadow-xs) !important;
     }
-    .stButton > button[kind="secondary"]:hover {
+    .stButton button[kind="secondary"]:hover {
         border-color: var(--border-hover) !important;
         background: #fafafc !important;
         color: var(--ink) !important;
     }
 
     /* Download buttons — outlined */
-    .stDownloadButton > button {
+    .stDownloadButton button {
         width: 100% !important;
         background: #ffffff !important;
         color: var(--primary) !important;
@@ -465,7 +465,7 @@ st.markdown(
         box-shadow: var(--shadow-xs) !important;
         transition: all 0.15s ease !important;
     }
-    .stDownloadButton > button:hover {
+    .stDownloadButton button:hover {
         background: var(--primary-soft) !important;
         border-color: var(--primary) !important;
         transform: none !important;
@@ -1067,22 +1067,13 @@ def show_login_page():
     st.markdown(
         """
         <style>
-        /* ===== AUTH PAGE — clean centered card ===== */
+        /* ===== AUTH PAGE ===== */
         section[data-testid="stMain"] .block-container {
-            padding-top: clamp(2rem, 9vh, 6rem) !important;
+            padding-top: clamp(1.5rem, 6vh, 3.5rem) !important;
             max-width: 1080px;
         }
 
-        /* Middle column becomes the auth card */
-        section[data-testid="stMain"] div[data-testid="stColumn"]:nth-child(2) {
-            background: #ffffff;
-            border: 1px solid #e7e8f0;
-            border-radius: 12px;
-            padding: clamp(24px, 3.5vw, 40px) clamp(20px, 3vw, 36px);
-            box-shadow: 0 1px 3px rgba(22, 24, 45, 0.06), 0 12px 32px rgba(22, 24, 45, 0.07);
-        }
-
-        /* Login / Sign Up switcher spans the card */
+        /* Login / Sign Up switcher spans the column */
         .stTabs [data-baseweb="tab-list"] { justify-content: center; }
         .stTabs [data-baseweb="tab"] {
             flex: 1;
