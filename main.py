@@ -228,23 +228,24 @@ st.markdown(
         }
     }
 
-    .main .block-container {
+    section[data-testid="stMain"] .block-container {
         padding: 0.9rem clamp(1rem, 3vw, 2.4rem) 2.4rem clamp(1rem, 3vw, 2.4rem) !important;
         max-width: 1200px;
         margin: 0 auto;
     }
     /* Tighter vertical rhythm between elements */
-    .main div[data-testid="stVerticalBlock"] { gap: 0.75rem !important; }
+    section[data-testid="stMain"] div[data-testid="stVerticalBlock"] { gap: 0.75rem !important; }
 
     /* ==============================================
        TYPOGRAPHY
        ============================================== */
-    .main h1, .main h2, .main h3, .main h4 {
+    section[data-testid="stMain"] h1, section[data-testid="stMain"] h2,
+    section[data-testid="stMain"] h3, section[data-testid="stMain"] h4 {
         color: var(--ink);
         letter-spacing: -0.02em;
         font-weight: 700;
     }
-    .main p, .main li { color: var(--text); }
+    section[data-testid="stMain"] p, section[data-testid="stMain"] li { color: var(--text); }
 
     .main-title {
         text-align: center;
@@ -641,7 +642,7 @@ st.markdown(
     /* ==============================================
        EXPANDERS
        ============================================== */
-    .main [data-testid="stExpander"] {
+    section[data-testid="stMain"] [data-testid="stExpander"] {
         border: 1px solid var(--border) !important;
         border-radius: var(--radius) !important;
         background: #ffffff !important;
@@ -649,13 +650,13 @@ st.markdown(
         overflow: hidden;
         margin-bottom: 8px;
     }
-    .main [data-testid="stExpander"] summary {
+    section[data-testid="stMain"] [data-testid="stExpander"] summary {
         font-weight: 500 !important;
         color: var(--text) !important;
         padding: 4px 6px;
         font-size: 14px !important;
     }
-    .main [data-testid="stExpander"] summary:hover { color: var(--primary) !important; }
+    section[data-testid="stMain"] [data-testid="stExpander"] summary:hover { color: var(--primary) !important; }
 
     /* ==============================================
        METRICS
@@ -974,7 +975,7 @@ st.markdown(
        RESPONSIVE
        ============================================== */
     @media only screen and (max-width: 768px) {
-        .main .block-container { padding: 1rem 0.9rem 2rem 0.9rem !important; }
+        section[data-testid="stMain"] .block-container { padding: 1rem 0.9rem 2rem 0.9rem !important; }
         .user-bubble, .assistant-bubble {
             max-width: 92% !important;
             font-size: 13.5px !important;
@@ -983,7 +984,7 @@ st.markdown(
         .stTabs [data-baseweb="tab"] { padding: 8px 10px; font-size: 13.5px; }
     }
     @media only screen and (max-width: 480px) {
-        .main .block-container { padding: 0.75rem 0.65rem 2rem 0.65rem !important; }
+        section[data-testid="stMain"] .block-container { padding: 0.75rem 0.65rem 2rem 0.65rem !important; }
         .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
         .stat-value { font-size: 22px; }
         .login-logo-wrapper .lb-logo-svg {
@@ -997,7 +998,7 @@ st.markdown(
         }
     }
     @media only screen and (min-width: 1600px) {
-        .main .block-container { max-width: 1320px; }
+        section[data-testid="stMain"] .block-container { max-width: 1320px; }
         .user-bubble, .assistant-bubble { max-width: 70% !important; }
     }
 
@@ -1067,13 +1068,13 @@ def show_login_page():
         """
         <style>
         /* ===== AUTH PAGE — clean centered card ===== */
-        .main .block-container {
+        section[data-testid="stMain"] .block-container {
             padding-top: clamp(2rem, 9vh, 6rem) !important;
             max-width: 1080px;
         }
 
         /* Middle column becomes the auth card */
-        .main div[data-testid="stColumn"]:nth-child(2) {
+        section[data-testid="stMain"] div[data-testid="stColumn"]:nth-child(2) {
             background: #ffffff;
             border: 1px solid #e7e8f0;
             border-radius: 12px;
@@ -1936,7 +1937,7 @@ def show_quiz_feature():
     st.markdown(
         """
         <style>
-        .main .block-container { padding-bottom: 0 !important; margin-bottom: 0 !important; }
+        section[data-testid="stMain"] .block-container { padding-bottom: 0 !important; margin-bottom: 0 !important; }
         </style>
         """,
         unsafe_allow_html=True
