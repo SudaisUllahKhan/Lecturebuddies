@@ -187,6 +187,14 @@ st.markdown(
     .stApp * { font-family: var(--font) !important; }
     /* …except the wordmark, which stays serif for brand */
     .lb-logo-text { font-family: Georgia, 'Times New Roman', serif !important; }
+    /* …and Streamlit's Material icon glyphs, which are font ligatures —
+       forcing Inter on them shows raw names like "expand_more" */
+    .stApp [data-testid="stIconMaterial"],
+    .stApp [data-testid="stExpanderToggleIcon"],
+    .stApp span[translate="no"],
+    .stApp [class*="material-symbols"] {
+        font-family: 'Material Symbols Rounded' !important;
+    }
 
     /* Hide Streamlit chrome, keep sidebar toggle on mobile */
     #MainMenu, footer, [data-testid="stAppToolbar"], .stDeployButton {
@@ -221,10 +229,12 @@ st.markdown(
     }
 
     .main .block-container {
-        padding: clamp(1.2rem, 3vw, 2.6rem) !important;
+        padding: 0.9rem clamp(1rem, 3vw, 2.4rem) 2.4rem clamp(1rem, 3vw, 2.4rem) !important;
         max-width: 1200px;
         margin: 0 auto;
     }
+    /* Tighter vertical rhythm between elements */
+    .main div[data-testid="stVerticalBlock"] { gap: 0.75rem !important; }
 
     /* ==============================================
        TYPOGRAPHY
@@ -260,11 +270,12 @@ st.markdown(
     }
     hr.gradient {
         border: none;
-        height: 1px;
-        background: var(--border);
-        margin: 4px auto 20px auto;
+        height: 2px;
+        background: linear-gradient(90deg, #4e54c8, #8f94fb, #764ba2);
+        margin: 2px auto 16px auto;
         max-width: 100%;
-        border-radius: 0;
+        border-radius: 2px;
+        opacity: 0.9;
     }
 
     /* ==============================================
@@ -273,18 +284,18 @@ st.markdown(
        ============================================== */
     .welcome-container {
         text-align: left;
-        padding: clamp(20px, 3vw, 28px) clamp(20px, 3vw, 32px);
-        background: var(--surface);
-        border: 1px solid var(--border);
+        padding: clamp(22px, 3.2vw, 32px) clamp(20px, 3vw, 34px);
+        background: linear-gradient(120deg, #4e54c8 0%, #667eea 55%, #764ba2 100%);
+        border: none;
         border-radius: var(--radius-lg);
-        margin: 4px 0 24px 0;
-        box-shadow: var(--shadow-xs);
+        margin: 4px 0 20px 0;
+        box-shadow: 0 8px 24px rgba(78, 84, 200, 0.25);
     }
     .welcome-eyebrow {
         display: inline-block;
-        color: var(--primary) !important;
-        background: var(--primary-soft);
-        border: 1px solid var(--primary-border);
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.28);
         border-radius: 6px;
         padding: 3px 10px;
         font-size: 11px;
@@ -294,14 +305,14 @@ st.markdown(
         margin-bottom: 12px;
     }
     .welcome-title {
-        color: var(--ink) !important;
-        font-size: clamp(20px, 3vw, 26px);
+        color: #ffffff !important;
+        font-size: clamp(20px, 3vw, 27px);
         font-weight: 700;
         letter-spacing: -0.02em;
         margin: 0 0 6px 0;
     }
     .welcome-text {
-        color: var(--muted) !important;
+        color: rgba(255, 255, 255, 0.90) !important;
         font-size: clamp(13.5px, 1.8vw, 15px);
         margin: 0;
         line-height: 1.6;
@@ -369,12 +380,12 @@ st.markdown(
     }
     [data-testid="stSidebar"] button p { color: inherit !important; font-size: 13.5px !important; }
     [data-testid="stSidebar"] button:hover {
-        background: #f2f3f9 !important;
-        color: var(--ink) !important;
+        background: var(--primary-soft) !important;
+        color: var(--primary) !important;
         transform: none;
         box-shadow: none !important;
     }
-    [data-testid="stSidebar"] button:active { background: #eaebf4 !important; }
+    [data-testid="stSidebar"] button:active { background: #e3e6fb !important; }
 
     /* Sidebar expander — invisible frame, reads as a plain menu */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
@@ -402,22 +413,21 @@ st.markdown(
        ============================================== */
     .stButton > button {
         width: 100% !important;
-        background: var(--primary) !important;
+        background: linear-gradient(135deg, #4e54c8 0%, #667eea 55%, #764ba2 100%) !important;
         color: #ffffff !important;
         font-weight: 600 !important;
         font-size: 14px !important;
         padding: 9px 16px !important;
-        border: 1px solid var(--primary) !important;
+        border: none !important;
         border-radius: 8px !important;
         cursor: pointer !important;
-        transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
-        box-shadow: var(--shadow-xs) !important;
+        transition: filter 0.15s ease, box-shadow 0.15s ease !important;
+        box-shadow: 0 2px 8px rgba(78, 84, 200, 0.28) !important;
         margin-top: 6px !important;
     }
     .stButton > button:hover {
-        background: var(--primary-hover) !important;
-        border-color: var(--primary-hover) !important;
-        box-shadow: var(--shadow-sm) !important;
+        filter: brightness(1.08);
+        box-shadow: 0 4px 14px rgba(78, 84, 200, 0.38) !important;
         transform: none !important;
     }
     .stButton > button:focus-visible {
@@ -425,8 +435,8 @@ st.markdown(
         outline-offset: 2px !important;
     }
     .stButton > button[kind="primary"] {
-        background: var(--primary) !important;
-        border-color: var(--primary) !important;
+        background: linear-gradient(135deg, #4e54c8 0%, #667eea 55%, #764ba2 100%) !important;
+        border: none !important;
         color: #ffffff !important;
     }
     .stButton > button[kind="secondary"] {
@@ -697,7 +707,7 @@ st.markdown(
     .assistant-message { margin: 8px 0; }
     .user-bubble {
         display: inline-block;
-        background: var(--primary);
+        background: linear-gradient(135deg, #4e54c8, #667eea);
         color: #ffffff;
         padding: 10px 14px;
         border-radius: 14px 14px 4px 14px;
@@ -778,13 +788,17 @@ st.markdown(
         margin: 0 0 8px 0;
     }
     .stat-value {
-        color: var(--ink);
+        background: linear-gradient(120deg, #4e54c8, #764ba2);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
         font-size: 28px;
         font-weight: 700;
         letter-spacing: -0.02em;
         margin: 0 0 4px 0;
         line-height: 1.1;
     }
+    .stat-card { border-top: 3px solid #667eea; }
     .stat-sub {
         color: var(--muted);
         font-size: 12.5px;
@@ -1237,7 +1251,7 @@ def show_dashboard():
         
         with col_nav_left:
             # Display SVG logo in navigation
-            st.markdown(f'<div style="display: flex; align-items: center; width: fit-content;">{get_logo_svg(size_px=80, font_size_px=30)}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="display: flex; align-items: center; width: fit-content;">{get_logo_svg(size_px=56, font_size_px=26)}</div>', unsafe_allow_html=True)
             
 
 
@@ -1279,7 +1293,7 @@ def show_dashboard():
                     st.session_state.selected_feature = None
                     st.rerun()
 
-    st.markdown('<hr class="gradient" style="margin-top: 0; margin-bottom: 2rem; max-width: 100%;">', unsafe_allow_html=True)
+    st.markdown('<hr class="gradient" style="margin-top: 0; margin-bottom: 0.9rem; max-width: 100%;">', unsafe_allow_html=True)
     
     # Create Layout - use st.sidebar for proper sidebar integration
     # Features in Sidebar
